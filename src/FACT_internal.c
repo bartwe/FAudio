@@ -66,6 +66,30 @@ static inline float FACT_INTERNAL_CalculateAmplitudeRatio(float decibel)
 	return (float) FAudio_pow(10.0, decibel / 2000.0);
 }
 
+static inline float FACT_INTERNAL_CalculateFilterFrequency(
+	float desiredFrequency,
+	uint32_t sampleRate
+) {
+	/* This is needed to convert linear frequencies to the value
+	 * FAudio_INTERNAL_FilterVoice expects, in order for it to actually
+	 * filter at the correct frequency.
+	 *
+	 * The formula is...
+	 *
+	 * (2 * sin(pi * (desired filter cutoff frequency) / sampleRate))
+	 *
+	 * ... but it behaves badly as the filter frequency gets too high as a
+	 * fraction of the sample rate, hence the mins.
+	 *
+	 * -@Woflox
+	 */
+	float freq = 2 * FAudio_sin(
+		F3DAUDIO_PI *
+		FAudio_min(desiredFrequency / sampleRate, 0.5f)
+	);
+	return FAudio_min(freq, 1.0f);
+}
+
 static inline void FACT_INTERNAL_ReadFile(
 	FACTReadFileCallback pReadFile,
 	FACTGetOverlappedResultCallback pGetOverlappedResult,
@@ -390,12 +414,17 @@ void FACT_INTERNAL_GetNextWave(
 	{
 		const float rngQFactor = 1.0f / (
 			FACT_INTERNAL_rng() *
-			(evt->wave.maxQFactor - evt->wave.minQFactor)
+			(evt->wave.maxQFactor - evt->wave.minQFactor) +
+			evt->wave.minQFactor
 		);
-		const float rngFrequency = (
-			FACT_INTERNAL_rng() *
-			(evt->wave.maxFrequency - evt->wave.minFrequency)
-		) / 20000.0f;
+		const float rngFrequency = FACT_INTERNAL_CalculateFilterFrequency(
+			(
+				FACT_INTERNAL_rng() *
+				(evt->wave.maxFrequency - evt->wave.minFrequency) +
+				evt->wave.minFrequency
+			),
+			cue->parentBank->parentEngine->audio->master->master.inputSampleRate
+		);
 		if (trackInst->activeWave.wave != NULL)
 		{
 			/* Variation on Loop */
@@ -429,8 +458,11 @@ void FACT_INTERNAL_GetNextWave(
 	}
 	else
 	{
-		trackInst->upcomingWave.baseQFactor = 1.0f / (float) track->qfactor;
-		trackInst->upcomingWave.baseFrequency = track->frequency / 20000.0f;
+		trackInst->upcomingWave.baseQFactor = 1.0f / (track->qfactor / 3.0f);
+		trackInst->upcomingWave.baseFrequency = FACT_INTERNAL_CalculateFilterFrequency(
+			track->frequency,
+			cue->parentBank->parentEngine->audio->master->master.inputSampleRate
+		);
 	}
 
 	/* Try to change loop counter at the very end */
@@ -908,6 +940,8 @@ void FACT_INTERNAL_BeginFadeOut(FACTSoundInstance *sound, uint16_t fadeOutMS)
 	sound->fadeType = 2; /* Out */
 	sound->fadeStart = FAudio_timems();
 	sound->fadeTarget = fadeOutMS;
+
+	sound->parentCue->state |= FACT_STATE_STOPPING;
 }
 
 void FACT_INTERNAL_BeginReleaseRPC(FACTSoundInstance *sound, uint16_t releaseMS)
@@ -922,6 +956,8 @@ void FACT_INTERNAL_BeginReleaseRPC(FACTSoundInstance *sound, uint16_t releaseMS)
 	sound->fadeType = 3; /* Release RPC */
 	sound->fadeStart = FAudio_timems();
 	sound->fadeTarget = releaseMS;
+
+	sound->parentCue->state |= FACT_STATE_STOPPING;
 }
 
 /* RPC Helper Functions */
@@ -970,21 +1006,39 @@ float FACT_INTERNAL_CalculateRPC(
 		result = rpc->points[i].y;
 		if (var >= rpc->points[i].x && var <= rpc->points[i + 1].x)
 		{
-			/* TODO: Non-linear curves! Check rpc->points[i].type!
-			 * 0 - Linear
-			 * 1 - "Fast", a logarithmic curve?
-			 * 2 - "Slow", an exponential curve?
-			 * 3 - "SinCos", looks like log if higher/exp if lower?
-			 * flibit absolutely does not know math, he is useless!
-			 */
+			const float maxX = rpc->points[i + 1].x - rpc->points[i].x;
+			const float maxY = rpc->points[i + 1].y - rpc->points[i].y;
+			const float deltaX = (var - rpc->points[i].x);
+			const float deltaXNormalized = deltaX / maxX;
 
-			/* y += mx */
-			result +=
-				((rpc->points[i + 1].y - rpc->points[i].y) /
-				(rpc->points[i + 1].x - rpc->points[i].x)) *
-					(var - rpc->points[i].x);
+			if (rpc->points[i].type == 0) /* Linear */
+			{
+				result += maxY * deltaXNormalized;
+			}
+			else if (rpc->points[i].type == 1) /* Fast */
+			{
+				result += maxY * (1.0f - FAudio_pow(1.0f - FAudio_pow(deltaXNormalized, 1.0f / 1.5f), 1.5f));
+			}
+			else if (rpc->points[i].type == 2) /* Slow */
+			{
+				result += maxY * (1.0f - FAudio_pow(1.0f - FAudio_pow(deltaXNormalized, 1.5f), 1.0f / 1.5f));
+			}
+			else if (rpc->points[i].type == 3) /* SinCos */
+			{
+				if (maxY > 0.0f)
+				{
+					result += maxY * (1.0f - FAudio_pow(1.0f - FAudio_sqrtf(deltaXNormalized), 2.0f));
+				}
+				else
+				{
+					result += maxY * (1.0f - FAudio_sqrtf(1.0f - FAudio_pow(deltaXNormalized, 2.0f)));
+				}
+			}
+			else
+			{
+				FAudio_assert(0 && "Unrecognized curve type!");
+			}
 
-			/* Pre-algebra, rockin'! */
 			break;
 		}
 	}
@@ -1007,11 +1061,10 @@ void FACT_INTERNAL_UpdateRPCs(
 
 	if (codeCount > 0)
 	{
-		/* Do NOT overwrite Frequency! */
+		/* Do NOT overwrite Frequency/QFactor! */
 		data->rpcVolume = 0.0f;
 		data->rpcPitch = 0.0f;
 		data->rpcReverbSend = 0.0f;
-		data->rpcFilterQFactor = FAUDIO_DEFAULT_FILTER_ONEOVERQ;
 		for (i = 0; i < codeCount; i += 1)
 		{
 			rpc = FACT_INTERNAL_GetRPC(
@@ -1071,12 +1124,15 @@ void FACT_INTERNAL_UpdateRPCs(
 			else if (rpc->parameter == RPC_PARAMETER_FILTERFREQUENCY)
 			{
 				/* Yes, just overwrite... */
-				data->rpcFilterFreq = rpcResult / 20000.0f;
+				data->rpcFilterFreq = FACT_INTERNAL_CalculateFilterFrequency(
+					rpcResult,
+					engine->audio->master->master.inputSampleRate
+				);
 			}
 			else if (rpc->parameter == RPC_PARAMETER_FILTERQFACTOR)
 			{
-				/* TODO: How do we combine these? */
-				data->rpcFilterQFactor += 1.0f / rpcResult;
+				/* Yes, just overwrite... */
+				data->rpcFilterQFactor = 1.0f / rpcResult;
 			}
 			else
 			{
@@ -1236,8 +1292,11 @@ void FACT_INTERNAL_ActivateEvent(
 						sound->parentCue->maxRpcReleaseTime
 					);
 				}
-
-				sound->parentCue->state |= FACT_STATE_STOPPING;
+				else
+				{
+					/* Pretty sure this doesn't happen, but just in case? */
+					sound->parentCue->state |= FACT_STATE_STOPPING;
+				}
 			}
 		}
 
@@ -1450,6 +1509,7 @@ uint8_t FACT_INTERNAL_UpdateSound(FACTSoundInstance *sound, uint32_t timestamp)
 
 	/* RPC updates */
 	sound->rpcData.rpcFilterFreq = -1.0f;
+	sound->rpcData.rpcFilterQFactor = -1.0f;
 	FACT_INTERNAL_UpdateRPCs(
 		sound->parentCue,
 		sound->sound->rpcCodeCount,
@@ -1461,6 +1521,7 @@ uint8_t FACT_INTERNAL_UpdateSound(FACTSoundInstance *sound, uint32_t timestamp)
 	for (i = 0; i < sound->sound->trackCount; i += 1)
 	{
 		sound->tracks[i].rpcData.rpcFilterFreq = sound->rpcData.rpcFilterFreq;
+		sound->tracks[i].rpcData.rpcFilterQFactor = sound->rpcData.rpcFilterQFactor;
 		FACT_INTERNAL_UpdateRPCs(
 			sound->parentCue,
 			sound->sound->tracks[i].rpcCodeCount,
@@ -1562,11 +1623,14 @@ uint8_t FACT_INTERNAL_UpdateSound(FACTSoundInstance *sound, uint32_t timestamp)
 			{
 				filterParams.Frequency = sound->tracks[i].activeWave.baseFrequency;
 			}
-			filterParams.OneOverQ = (
-				sound->tracks[i].activeWave.baseQFactor +
-				sound->rpcData.rpcFilterQFactor +
-				sound->tracks[i].rpcData.rpcFilterQFactor
-			) / 3.0f; /* FIXME: How do we combine QFactor params? */
+			if (sound->tracks[i].rpcData.rpcFilterQFactor >= 0.0f)
+			{
+				filterParams.OneOverQ = sound->tracks[i].rpcData.rpcFilterQFactor;
+			}
+			else
+			{
+				filterParams.OneOverQ = sound->tracks[i].activeWave.baseQFactor;
+			}
 			FAudioVoice_SetFilterParameters(
 				sound->tracks[i].activeWave.wave->voice,
 				&filterParams,
@@ -1859,8 +1923,7 @@ void FACT_INTERNAL_OnBufferEnd(FAudioVoiceCallback *callback, void* pContext)
 	buffer.pContext = NULL;
 
 	/* Submit, finally. */
-	if (	entry->Format.wFormatTag == 0x1 ||
-		entry->Format.wFormatTag == 0x3	)
+	if (entry->Format.wFormatTag == 0x3)
 	{
 		bufferWMA.pDecodedPacketCumulativeBytes =
 			c->wave->parentBank->seekTables[c->wave->index].entries;
@@ -2002,12 +2065,6 @@ uint32_t FACT_INTERNAL_ParseAudioEngine(
 
 	uint8_t *ptr = (uint8_t*) pParams->pGlobalSettingsBuffer;
 	uint8_t *start = ptr;
-
-	/* FIXME: Should be recorded so we can return the correct error */
-	if (!pParams->pGlobalSettingsBuffer || pParams->globalSettingsBufferSize == 0)
-	{
-		return 0;
-	}
 
 	magic = read_u32(&ptr, 0);
 	se = magic == 0x58475346; /* Swap Endian */
@@ -2151,7 +2208,8 @@ uint32_t FACT_INTERNAL_ParseAudioEngine(
 		{
 			pEngine->dspPresetCodes[i] = (uint32_t) (ptr - start);
 			pEngine->dspPresets[i].accessibility = read_u8(&ptr);
-			pEngine->dspPresets[i].parameterCount = read_u32(&ptr, se);
+			pEngine->dspPresets[i].parameterCount = read_u16(&ptr, se);
+			ptr += 2; /* Unknown value */
 			pEngine->dspPresets[i].parameters = (FACTDSPParameter*) pEngine->pMalloc(
 				sizeof(FACTDSPParameter) *
 				pEngine->dspPresets[i].parameterCount
@@ -2216,13 +2274,6 @@ uint32_t FACT_INTERNAL_ParseAudioEngine(
 		FAudio_memcpy(pEngine->variableNames[i], ptr, memsize);
 		ptr += memsize;
 	}
-
-	/* Peristent Notifications */
-	pEngine->notifications = 0;
-	pEngine->cue_context = NULL;
-	pEngine->sb_context = NULL;
-	pEngine->wb_context = NULL;
-	pEngine->wave_context = NULL;
 
 	/* Store this pointer in case we're asked to free it */
 	if (pParams->globalSettingsFlags & FACT_FLAG_MANAGEDATA)
@@ -2292,8 +2343,9 @@ void FACT_INTERNAL_ParseTrackEvents(
 			track->events[i].wave.angle = read_u16(ptr, se);
 
 			/* Track Variation */
-			track->events[i].wave.complex.trackCount = read_u16(ptr, se);
-			track->events[i].wave.complex.variation = read_u16(ptr, se);
+			evtInfo = read_u32(ptr, se);
+			track->events[i].wave.complex.trackCount = evtInfo & 0xFFFF;
+			track->events[i].wave.complex.variation = (evtInfo >> 16) & 0xFFFF;
 			*ptr += 4; /* Unknown values */
 			track->events[i].wave.complex.tracks = (uint16_t*) pMalloc(
 				sizeof(uint16_t) *
@@ -2364,8 +2416,9 @@ void FACT_INTERNAL_ParseTrackEvents(
 			track->events[i].wave.variationFlags = read_u16(ptr, se);
 
 			/* Track Variation */
-			track->events[i].wave.complex.trackCount = read_u16(ptr, se);
-			track->events[i].wave.complex.variation = read_u16(ptr, se);
+			evtInfo = read_u32(ptr, se);
+			track->events[i].wave.complex.trackCount = evtInfo & 0xFFFF;
+			track->events[i].wave.complex.variation = (evtInfo >> 16) & 0xFFFF;
 			*ptr += 4; /* Unknown values */
 			track->events[i].wave.complex.tracks = (uint16_t*) pMalloc(
 				sizeof(uint16_t) *
@@ -2468,9 +2521,11 @@ uint32_t FACT_INTERNAL_ParseSoundBank(
 		cueHashOffset,
 		cueNameIndexOffset,
 		soundOffset;
+	uint32_t entryCountAndFlags;
+	uint16_t filterData;
 	uint8_t platform;
 	size_t memsize;
-	uint16_t i, j, cur, tool;
+	uint16_t i, j, k, cur, tool;
 	uint8_t *ptrBookmark;
 
 	uint8_t *ptr = (uint8_t*) pvBuffer;
@@ -2628,9 +2683,9 @@ uint32_t FACT_INTERNAL_ParseSoundBank(
 				loc.rpcCodeCount = read_u8(&ptr); \
 				memsize = sizeof(uint32_t) * loc.rpcCodeCount; \
 				loc.rpcCodes = (uint32_t*) pEngine->pMalloc(memsize); \
-				for (j = 0; j < loc.rpcCodeCount; j += 1) \
+				for (k = 0; k < loc.rpcCodeCount; k += 1) \
 				{ \
-					loc.rpcCodes[j] = read_u32(&ptr, se); \
+					loc.rpcCodes[k] = read_u32(&ptr, se); \
 				} \
 
 			/* Sound has attached RPCs */
@@ -2715,19 +2770,18 @@ uint32_t FACT_INTERNAL_ParseSoundBank(
 					continue;
 				}
 
-				sb->sounds[i].tracks[j].filter = read_u8(&ptr);
-				if (sb->sounds[i].tracks[j].filter & 0x01)
+				filterData = read_u16(&ptr, se);
+				if (filterData & 0x0001)
 				{
 					sb->sounds[i].tracks[j].filter =
-						(sb->sounds[i].tracks[j].filter >> 1) & 0x02;
+						(filterData >> 1) & 0x02;
 				}
 				else
 				{
 					/* Huh...? */
 					sb->sounds[i].tracks[j].filter = 0xFF;
 				}
-
-				sb->sounds[i].tracks[j].qfactor = read_u8(&ptr);
+				sb->sounds[i].tracks[j].qfactor = (filterData >> 8) & 0xFF;
 				sb->sounds[i].tracks[j].frequency = read_u16(&ptr, se);
 			}
 
@@ -2819,8 +2873,9 @@ uint32_t FACT_INTERNAL_ParseSoundBank(
 	for (i = 0; i < sb->variationCount; i += 1)
 	{
 		sb->variationCodes[i] = (uint32_t) (ptr - start);
-		sb->variations[i].entryCount = read_u16(&ptr, se);
-		sb->variations[i].flags = (read_u16(&ptr, se) >> 3) & 0x07;
+		entryCountAndFlags = read_u32(&ptr, se);
+		sb->variations[i].entryCount = entryCountAndFlags & 0xFFFF;
+		sb->variations[i].flags = (entryCountAndFlags >> (16 + 3)) & 0x07;
 		ptr += 2; /* Unknown value */
 		sb->variations[i].variable = read_s16(&ptr, se);
 		memsize = sizeof(FACTVariation) * sb->variations[i].entryCount;
@@ -3251,12 +3306,13 @@ uint32_t FACT_INTERNAL_ParseWaveBank(
 		wb->seekTables = NULL;
 	}
 
-	/* TODO: WaveBank Entry Names
+	/* WaveBank Entry Names */
 	if (wbinfo.dwFlags & FACT_WAVEBANK_FLAGS_ENTRYNAMES)
 	{
 		SEEKSET(header.Segments[FACT_WAVEBANK_SEGIDX_ENTRYNAMES].dwOffset)
+		wb->waveBankNames = (char*) pEngine->pMalloc(64 * wbinfo.dwEntryCount);
+		READ(wb->waveBankNames, 64 * wbinfo.dwEntryCount);
 	}
-	*/
 
 	/* Add to the Engine WaveBank list */
 	LinkedList_AddEntry(

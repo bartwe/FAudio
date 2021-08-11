@@ -89,7 +89,7 @@ typedef struct FACTDSPParameter
 typedef struct FACTDSPPreset
 {
 	uint8_t accessibility;
-	uint32_t parameterCount;
+	uint16_t parameterCount;
 	FACTDSPParameter *parameters;
 } FACTDSPPreset;
 
@@ -490,6 +490,7 @@ struct FACTWaveBank
 	FACTWaveBankEntry *entries;
 	uint32_t *entryRefs;
 	FACTSeekTable *seekTables;
+	char *waveBankNames;
 
 	/* I/O information */
 	uint32_t packetSize;
