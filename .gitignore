@@ -12,3 +12,5 @@ Release/
 xcuserdata/
 *.xcworkspace/
 *.xcscheme
+/csharp/bin/
+*.bak
