@@ -1,19 +1,57 @@
 <Project Sdk="Microsoft.NET.Sdk">
-	<PropertyGroup>
-		<TargetFrameworks>net40;netstandard2.0</TargetFrameworks>
-		<Platforms>x64</Platforms>
-	</PropertyGroup>
-	<PropertyGroup>
-		<EnableDefaultItems>false</EnableDefaultItems>
-		<AssemblyName>FAudio-CS</AssemblyName>
-		<RootNamespace>FAudio</RootNamespace>
-		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-	</PropertyGroup>
-	<ItemGroup>
-		<Compile Include="FAudio.cs" />
-	</ItemGroup>
-	<ItemGroup>
-		<None Include="app.config" />
-	</ItemGroup>
+
+    <PropertyGroup>
+        <OutputType>Library</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+    </PropertyGroup>
+
+     <PropertyGroup>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+        <Configurations>DebugLinuxArm32;DebugLinuxX64;DebugWindowsX64;DebugWindowsAOTX64</Configurations>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
+        <Nullable>enable</Nullable>
+        <OutputPath>bin\$(Configuration)</OutputPath>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <Platforms>AnyCPU</Platforms>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugWindowsX64|AnyCPU'">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+        <Optimize>false</Optimize>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugLinuxArm32|AnyCPU'">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+        <Optimize>true</Optimize>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugLinuxX64|AnyCPU'">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+        <Optimize>true</Optimize>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugWindowsAOTX64|AnyCPU'">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <DefineConstants>$(DefineConstants);DEBUG;TRACE;NATIVEAOT</DefineConstants>
+        <Optimize>false</Optimize>
+        <PublishAot>true</PublishAot>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(Configuration)|$(Platform)'=='DebugWindowsAOTX64|AnyCPU'">
+        <RuntimeHostConfigurationOption Include="System.Runtime.InteropServices.EnableCppInterop" Value="true" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <AssemblyName>FAudio-CS</AssemblyName>
+        <RootNamespace>FAudio</RootNamespace>
+    </PropertyGroup>
+
 </Project>
