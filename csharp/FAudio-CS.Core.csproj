@@ -9,6 +9,11 @@
 		<AssemblyName>FAudio-CS</AssemblyName>
 		<RootNamespace>FAudio</RootNamespace>
 	</PropertyGroup>
+	
+	<PropertyGroup>
+        <SelfContained>true</SelfContained>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    </PropertyGroup>
 
     <PropertyGroup>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -27,6 +32,27 @@
         <Optimize>true</Optimize>
         <WarningLevel>5</WarningLevel>
     </PropertyGroup>
+	
+	
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugWindowsX64|AnyCPU'">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <Optimize>False</Optimize>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugWindowsAOTX64|AnyCPU'">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <DefineConstants>TRACE;DEBUG;WindowsX64;NATIVEAOT</DefineConstants>
+        <Optimize>false</Optimize>
+        <PublishAot>true</PublishAot>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(Configuration)|$(Platform)'=='DebugWindowsAOTX64|AnyCPU'">
+        <RuntimeHostConfigurationOption Include="System.Runtime.InteropServices.EnableCppInterop" Value="true" />
+    </ItemGroup>
+
+
 	
     <ItemGroup>
 		<Compile Include="FAudio.cs" />
