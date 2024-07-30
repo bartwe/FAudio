@@ -59,7 +59,12 @@
     <LibraryPath>$(ProjectDir)..\..\SDL\VisualC\SDL\$(PlatformShortName)\Release\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>.\bin\$(Configuration)\</OutDir>
+    <IntDir>.\obj\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>.\bin\$(Configuration)\</OutDir>
+    <IntDir>.\obj\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
