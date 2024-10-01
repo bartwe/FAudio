@@ -33,14 +33,18 @@
 #define malloc FAudio_malloc
 #define realloc FAudio_realloc
 #define free FAudio_free
+#ifndef NO_MEMSET_OVERRIDE
 #ifdef memset /* Thanks, Apple! */
 #undef memset
 #endif
 #define memset FAudio_memset
+#endif /* NO_MEMSET_OVERRIDE */
+#ifndef NO_MEMCPY_OVERRIDE
 #ifdef memcpy /* Thanks, Apple! */
 #undef memcpy
 #endif
 #define memcpy FAudio_memcpy
+#endif /* NO_MEMCPY_OVERRIDE */
 #define memcmp FAudio_memcmp
 
 #define pow FAudio_pow
@@ -87,6 +91,8 @@
 static float songVolume = 1.0f;
 static FAudio *songAudio = NULL;
 static FAudioMasteringVoice *songMaster = NULL;
+static unsigned int songLength = 0;
+static unsigned int songOffset = 0;
 
 static FAudioSourceVoice *songVoice = NULL;
 static FAudioVoiceCallback callbacks;
@@ -117,9 +123,6 @@ static void XNA_SongSubmitBuffer(FAudioVoiceCallback *callback, void *pBufferCon
 			activeVorbisSongInfo.sample_rate * activeVorbisSongInfo.channels
 		);
 		buffer.AudioBytes = decoded * activeVorbisSongInfo.channels * sizeof(float);
-		buffer.Flags = (decoded < activeVorbisSongInfo.sample_rate) ?
-			FAUDIO_END_OF_STREAM :
-			0;
 	}
 	else if (activeQoaSong != NULL)
 	{
@@ -129,9 +132,6 @@ static void XNA_SongSubmitBuffer(FAudioVoiceCallback *callback, void *pBufferCon
 			(short*) songCache
 		);
 		buffer.AudioBytes = decoded * qoaChannels * sizeof(short);
-		buffer.Flags = (decoded < qoaSamplesPerChannelPerFrame) ?
-			FAUDIO_END_OF_STREAM :
-			0;
 	}
 
 	if (decoded == 0)
@@ -139,6 +139,8 @@ static void XNA_SongSubmitBuffer(FAudioVoiceCallback *callback, void *pBufferCon
 		return;
 	}
 
+	songOffset += decoded;
+	buffer.Flags = (songOffset >= songLength) ? FAUDIO_END_OF_STREAM : 0;
 	buffer.pAudioData = songCache;
 	buffer.PlayBegin = 0;
 	buffer.PlayLength = decoded;
@@ -218,6 +220,9 @@ FAUDIOAPI float XNA_PlaySong(const char *name)
 		format.nBlockAlign = format.nChannels * format.wBitsPerSample / 8;
 		format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
 		format.cbSize = 0;
+
+		songOffset = 0;
+		songLength = stb_vorbis_stream_length_in_samples(activeVorbisSong);
 	}
 	else /* It's not vorbis, try qoa!*/
 	{
@@ -238,6 +243,9 @@ FAUDIOAPI float XNA_PlaySong(const char *name)
 		format.nBlockAlign = format.nChannels * format.wBitsPerSample / 8;
 		format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
 		format.cbSize = 0;
+
+		songOffset = 0;
+		songLength = qoaTotalSamplesPerChannel;
 	}
 
 	/* Allocate decode cache */
