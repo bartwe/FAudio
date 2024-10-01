@@ -55,8 +55,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir)SDL2\include;..\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)Libraries\FNA;..\..\..\SDL2\lib\$(PlatformShortName);$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)SDL2\include\;..\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Libraries\FNA;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)Libraries\FNA\</OutDir>
@@ -66,10 +66,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">FAUDIO_SDL3_PLATFORM;_WINDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>SDL2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
@@ -104,6 +105,7 @@
     <ClCompile Include="..\src\FAPOFX_masteringlimiter.c" />
     <ClCompile Include="..\src\FAPOFX_reverb.c" />
     <ClCompile Include="..\src\FAPOFX_echo.c" />
+    <ClCompile Include="..\src\FAudio_platform_sdl3.c" />
     <ClCompile Include="..\src\XNA_Song.c" />
     <ClCompile Include="..\src\FAudio_platform_sdl2.c" />
   </ItemGroup>
