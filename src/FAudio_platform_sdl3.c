@@ -134,7 +134,7 @@ void FAudio_PlatformAddRef()
 	FAudio_INTERNAL_PrioritizeDirectSound();
 
 	/* SDL tracks ref counts for each subsystem */
-	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
+	if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
 	{
 		SDL_Log("SDL_INIT_AUDIO failed: %s", SDL_GetError());
 	}
@@ -324,14 +324,14 @@ uint32_t FAudio_PlatformGetDeviceDetails(
 	/* Get the device format from the OS */
 	if (index == 0)
 	{
-		if (SDL_GetAudioDeviceFormat(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL) < 0)
+		if (!SDL_GetAudioDeviceFormat(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL))
 		{
 			SDL_zero(spec);
 		}
 	}
 	else
 	{
-		if (SDL_GetAudioDeviceFormat(devs[index - 1], &spec, NULL) < 0)
+		if (!SDL_GetAudioDeviceFormat(devs[index - 1], &spec, NULL))
 		{
 			SDL_zero(spec);
 		}
@@ -387,7 +387,7 @@ void FAudio_PlatformWaitThread(FAudioThread thread, int32_t *retval)
 
 void FAudio_PlatformThreadPriority(FAudioThreadPriority priority)
 {
-	SDL_SetThreadPriority((SDL_ThreadPriority) priority);
+	SDL_SetCurrentThreadPriority((SDL_ThreadPriority) priority);
 }
 
 uint64_t FAudio_PlatformGetThreadID(void)
@@ -435,7 +435,7 @@ static size_t FAUDIOCALL FAudio_INTERNAL_ioread(
 	size_t size,
 	size_t count
 ) {
-	return SDL_ReadIO((SDL_IOStream*) data, dst, size * count);
+	return SDL_ReadIO((SDL_IOStream*) data, dst, size * count) / size;
 }
 
 static int64_t FAUDIOCALL FAudio_INTERNAL_ioseek(
@@ -480,26 +480,11 @@ FAudioIOStream* FAudio_memopen(void *mem, int len)
 	return io;
 }
 
-/* FIXME: Expose IOStreamMemData as a property! */
-struct SDL_IOStream
-{
-    SDL_IOStreamInterface iface;
-    void *userdata;
-    SDL_IOStatus status;
-    SDL_PropertiesID props;
-};
-typedef struct IOStreamMemData
-{
-    Uint8 *base;
-    Uint8 *here;
-    Uint8 *stop;
-} IOStreamMemData;
-
 uint8_t* FAudio_memptr(FAudioIOStream *io, size_t offset)
 {
-	SDL_IOStream *stream = (SDL_IOStream*) io->data;
-	IOStreamMemData *memdata = (IOStreamMemData*) stream->userdata;
-	return memdata->base + offset;
+	SDL_PropertiesID props = SDL_GetIOProperties((SDL_IOStream*) io->data);
+	FAudio_assert(SDL_HasProperty(props, SDL_PROP_IOSTREAM_MEMORY_POINTER));
+	return ((uint8_t*) SDL_GetPointerProperty(props, SDL_PROP_IOSTREAM_MEMORY_POINTER, NULL)) + offset;
 }
 
 void FAudio_close(FAudioIOStream *io)
