@@ -126,8 +126,8 @@ int main(int argc, char **argv)
 	/* ImGui interop */
 	ImGuiContext *imContext;
 	SDL_Keymod kmod;
-	uint8_t mouseClicked[3];
-	int8_t mouseWheel;
+	uint8_t mouseClicked[3] = { 0, 0, 0 };
+	int8_t mouseWheel = 0;
 	int mx, my;
 	uint32_t mouseState;
 	int ww, wh, dw, dh;
@@ -238,9 +238,9 @@ int main(int argc, char **argv)
 		SDL_GetWindowSize(window, &ww, &wh);
 		SDL_GL_GetDrawableSize(window, &dw, &dh);
 		mouseState = SDL_GetMouseState(&mx, &my); /* TODO: Focus */
-		mouseClicked[0] |= (mouseState * SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
-		mouseClicked[1] |= (mouseState * SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;
-		mouseClicked[2] |= (mouseState * SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
+		mouseClicked[0] |= (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
+		mouseClicked[1] |= (mouseState & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;
+		mouseClicked[2] |= (mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
 		tCur = SDL_GetTicks();
 
 		/* Set these every frame, we have a resizable window! */
