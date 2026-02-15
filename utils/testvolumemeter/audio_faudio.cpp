@@ -21,9 +21,19 @@ void faudio_destroy_context(AudioContext *context)
 {
 	if (context != NULL)
 	{
-		FAudioVoice_DestroyVoice(context->source_voice);
-		FAudioVoice_DestroyVoice(context->mastering_voice);
+		if (context->source_voice != NULL)
+		{
+			FAudioVoice_DestroyVoice(context->source_voice);
+		}
+		if (context->mastering_voice != NULL)
+		{
+			FAudioVoice_DestroyVoice(context->mastering_voice);
+		}
 		FAudio_Release(context->faudio);
+		if (context->wav_samples != NULL)
+		{
+			drwav_free(context->wav_samples, NULL);
+		}
 		delete context;
 	}
 }
@@ -33,6 +43,12 @@ void faudio_wave_load(AudioContext *context, AudioSampleWave sample, bool stereo
 	if (context->source_voice)
 	{
 		FAudioVoice_DestroyVoice(context->source_voice);
+		context->source_voice = NULL;
+	}
+	if (context->wav_samples != NULL)
+	{
+		drwav_free(context->wav_samples, NULL);
+		context->wav_samples = NULL;
 	}
 
 	/* Buffer data... */
@@ -43,6 +59,10 @@ void faudio_wave_load(AudioContext *context, AudioSampleWave sample, bool stereo
 		&context->wav_samplerate,
 		&context->wav_sample_count
 	);
+	if (context->wav_samples == NULL)
+	{
+		return;
+	}
 	context->wav_sample_count /= context->wav_channels;
 	context->buffer.Flags = FAUDIO_END_OF_STREAM;
 	context->buffer.AudioBytes = 4 * context->wav_sample_count * context->wav_channels;
@@ -76,7 +96,7 @@ void faudio_wave_load(AudioContext *context, AudioSampleWave sample, bool stereo
 	waveFormat.wFormatTag = 3;
 	waveFormat.nChannels = context->wav_channels;
 	waveFormat.nSamplesPerSec = context->wav_samplerate;
-	waveFormat.nAvgBytesPerSec = context->wav_samplerate * 4;
+	waveFormat.nAvgBytesPerSec = context->wav_samplerate * context->wav_channels * 4;
 	waveFormat.nBlockAlign = context->wav_channels * 4;
 	waveFormat.wBitsPerSample = 32;
 	waveFormat.cbSize = 0;
@@ -94,6 +114,7 @@ void faudio_wave_load(AudioContext *context, AudioSampleWave sample, bool stereo
 	);
 	if (hr != 0)
 	{
+		fapo->Release(fapo);
 		return;
 	}
 	fapo->Release(fapo);
@@ -101,6 +122,11 @@ void faudio_wave_load(AudioContext *context, AudioSampleWave sample, bool stereo
 
 void faudio_wave_play(AudioContext *context)
 {
+	if (context->source_voice == NULL)
+	{
+		return;
+	}
+
 	FAudioSourceVoice_Stop(context->source_voice, 0, FAUDIO_COMMIT_NOW);
 	FAudioSourceVoice_FlushSourceBuffers(context->source_voice);
 
@@ -153,6 +179,7 @@ AudioContext* faudio_create_context()
 	);
 	if (hr != 0)
 	{
+		FAudio_Release(faudio);
 		return NULL;
 	}
 
