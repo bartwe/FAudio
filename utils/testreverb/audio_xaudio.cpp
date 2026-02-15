@@ -82,6 +82,7 @@ void xaudio_create_voice(AudioContext *context, float *buffer, size_t buffer_siz
 	);
 	if (FAILED(hr))
 	{
+		xapo->Release();
 		return;
 	}
 	context->voices[AudioVoiceType_Master] = context->mastering_voice;
@@ -104,6 +105,7 @@ void xaudio_create_voice(AudioContext *context, float *buffer, size_t buffer_siz
 	);
 	if (FAILED(hr))
 	{
+		xapo->Release();
 		return;
 	}
 	context->voices[AudioVoiceType_Submix] = context->submix_voice;
@@ -133,6 +135,7 @@ void xaudio_create_voice(AudioContext *context, float *buffer, size_t buffer_siz
 	);
 	if (FAILED(hr)) 
 	{
+		xapo->Release();
 		return;
 	}
 	context->voices[AudioVoiceType_Source] = context->source_voice;
@@ -155,6 +158,11 @@ void xaudio_create_voice(AudioContext *context, float *buffer, size_t buffer_siz
 
 void xaudio_reverb_set_params(AudioContext *context)
 {
+	if (context->voices[context->effect_on_voice] == NULL)
+	{
+		return;
+	}
+
 	XAUDIO2FX_REVERB_PARAMETERS native_params = { 0 };
 
 	native_params.WetDryMix = context->reverb_params.WetDryMix;
@@ -278,6 +286,7 @@ AudioContext *xaudio_create_context(bool output_5p1, AudioVoiceType effect_on_vo
 	context->mastering_voice = NULL;
 	context->submix_voice = NULL;
 	context->source_voice = NULL;
+	SDL_zero(context->voices);
 	context->wav_samples = NULL;
 	context->reverb_params = audio_reverb_presets[0];
 	context->reverb_enabled = false;
