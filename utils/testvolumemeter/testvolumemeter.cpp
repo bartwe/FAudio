@@ -138,7 +138,11 @@ void FAudioTool_Update()
 		}
 		player = audio_create_context((AudioEngine) audio_engine);
 	}
-	if (update_wave | update_engine)
+	if (player == NULL)
+	{
+		return;
+	}
+	if (update_wave || update_engine)
 	{
 		audio_wave_load(player, (AudioSampleWave) wave_index, wave_stereo);
 	}
