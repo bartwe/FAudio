@@ -101,6 +101,10 @@ void faudio_create_voice(AudioContext *context, float *buffer, size_t buffer_siz
 		NULL,
 		voice_effect[AudioVoiceType_Submix]
 	);
+	if (hr != 0)
+	{
+		return;
+	}
 	context->voices[AudioVoiceType_Submix] = context->submix_voice;
 
 	FAudioVoice_SetVolume(context->submix_voice, 1.0f, FAUDIO_COMMIT_NOW);
@@ -151,6 +155,11 @@ void faudio_create_voice(AudioContext *context, float *buffer, size_t buffer_siz
 
 void faudio_reverb_set_params(AudioContext *context)
 {
+	if (context->voices[context->effect_on_voice] == NULL)
+	{
+		return;
+	}
+
 	FAudioVoice_SetEffectParameters(
 		context->voices[context->effect_on_voice], 
 		0, 
@@ -250,6 +259,7 @@ AudioContext *faudio_create_context(bool output_5p1, AudioVoiceType effect_on_vo
 	context->source_voice = NULL;
 	context->submix_voice = NULL;
 	context->mastering_voice = NULL;
+	SDL_zero(context->voices);
 	context->wav_samples = NULL;
 	SDL_zero(context->reverb_params);
 	context->reverb_enabled = false;
