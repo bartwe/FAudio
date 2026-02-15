@@ -356,7 +356,13 @@ static unsigned int qoa_decode_header(qoa_data *data) {
 	data->qoa.samplerate = (frame_header >> 32) & 0xffffff;
 	data->samples_per_channel_per_frame = (frame_header >> 16) & 0x00ffff;
 
-	if (data->qoa.channels == 0 || data->qoa.channels == 0 || data->qoa.samplerate == 0) {
+	if (
+		data->qoa.channels == 0 ||
+		data->qoa.channels > QOA_MAX_CHANNELS ||
+		data->qoa.samplerate == 0 ||
+		data->samples_per_channel_per_frame == 0 ||
+		data->samples_per_channel_per_frame > QOA_FRAME_LEN
+	) {
 		return 0;
 	}
 
@@ -366,6 +372,10 @@ static unsigned int qoa_decode_header(qoa_data *data) {
 qoa *qoa_open_from_memory(unsigned char *bytes, unsigned int size, int free_on_close)
 {
 	qoa_data *data = (qoa_data*) malloc(sizeof(qoa_data));
+	if (!data)
+	{
+		return NULL;
+	}
 	data->bytes = bytes;
 	data->size = size;
 	data->frame_index = 0;
@@ -388,8 +398,18 @@ static qoa *qoa_open_from_file(FILE *file, int free_on_close)
 	len = (unsigned int) (ftell(file) - start);
 	fseek(file, start, SEEK_SET);
 
-	bytes = malloc(len);
-	fread(bytes, 1, len, file);
+	bytes = (unsigned char*) malloc(len);
+	if (!bytes)
+	{
+		fclose(file);
+		return NULL;
+	}
+	if (fread(bytes, 1, len, file) != len)
+	{
+		fclose(file);
+		free(bytes);
+		return NULL;
+	}
 	fclose(file);
 
 	return qoa_open_from_memory(bytes, len, free_on_close);
@@ -447,14 +467,28 @@ unsigned int qoa_decode_next_frame(qoa *qoa, short *sample_data) {
 	samples    = (frame_header >> 16) & 0x00ffff;
 	frame_size = (frame_header      ) & 0x00ffff;
 
+	if (
+		channels == 0 ||
+		channels > QOA_MAX_CHANNELS ||
+		frame_size < 8 + QOA_LMS_LEN * 4 * channels ||
+		qoa_frame_start(data, data->frame_index) + frame_size > data->size
+	) {
+		return 0;
+	}
+
 	data_size = frame_size - 8 - QOA_LMS_LEN * 4 * channels;
+	if ((data_size & 0x7) != 0)
+	{
+		return 0;
+	}
 	num_slices = data_size / 8;
 	max_total_samples = num_slices * QOA_SLICE_LEN;
 
 	if (
 		channels != data->qoa.channels ||
 		samplerate != data->qoa.samplerate ||
-		frame_size > data->size ||
+		samples == 0 ||
+		samples > QOA_FRAME_LEN ||
 		samples * channels > max_total_samples
 	) {
 		return 0;
@@ -506,21 +540,18 @@ void qoa_seek_frame(qoa *qoa, int frame_index) {
 
 void qoa_decode_entire(qoa *qoa, short *sample_data) {
 	qoa_data* data = (qoa_data *) qoa;
-	unsigned int frame_count, sample_index, sample_count;
-	int total_samples;
+	unsigned int sample_index, sample_count;
 	short *sample_ptr;
-	uint32_t i;
-
-	/* Calculate the required size of the sample buffer and allocate */
-	total_samples = data->qoa.samples * data->qoa.channels;
-
-	frame_count = (data->size - 64) / data->frame_size;
 	sample_index = 0;
 
-	for (i = 0; i < frame_count; i += 1)
+	while (sample_index < data->qoa.samples)
 	{
 		sample_ptr = sample_data + sample_index * data->qoa.channels;
 		sample_count = qoa_decode_next_frame(qoa, sample_ptr);
+		if (sample_count == 0)
+		{
+			break;
+		}
 		sample_index += sample_count;
 	}
 }
