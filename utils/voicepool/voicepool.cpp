@@ -124,6 +124,7 @@ void FAudioTool_Update()
 		FAudioSourceVoice *src;
 		unsigned int rate;
 		size_t index = wave_index + (wave_stereo ? 3 : 0);
+		size_t poolIndex = 0;
 
 		bool found = false;
 		const std::vector<FAudioSourceVoice*>& pool = wave_stereo ? stereoPool : monoPool;
@@ -137,16 +138,26 @@ void FAudioTool_Update()
 				/* Nothing is queued, reuse this voice! */
 				src = pool[i];
 				rate = poolRate[i];
+				poolIndex = i;
 				found = true;
 				break;
 			}
 		}
+
 		if (found)
 		{
 			/* At most we can change the sample rate, can't change channel count */
 			if (soundRate[index] != rate)
 			{
 				FAudioSourceVoice_SetSourceSampleRate(src, soundRate[index]);
+				if (wave_stereo)
+				{
+					stereoPoolRate[poolIndex] = soundRate[index];
+				}
+				else
+				{
+					monoPoolRate[poolIndex] = soundRate[index];
+				}
 			}
 		}
 		else
@@ -171,9 +182,20 @@ void FAudioTool_Update()
 				NULL,
 				NULL
 			);
+			SDL_assert(hr == 0);
+			if (hr != 0)
+			{
+				return;
+			}
 
 			/* Just start this now, let the buffer call "play" instead */
-			FAudioSourceVoice_Start(src, 0, FAUDIO_COMMIT_NOW);
+			hr = FAudioSourceVoice_Start(src, 0, FAUDIO_COMMIT_NOW);
+			SDL_assert(hr == 0);
+			if (hr != 0)
+			{
+				FAudioVoice_DestroyVoice(src);
+				return;
+			}
 
 			if (wave_stereo)
 			{
@@ -198,6 +220,7 @@ void FAudioTool_Update()
 		buffer.LoopLength = 0;
 		buffer.LoopCount = 0;
 		buffer.pContext = NULL;
-		FAudioSourceVoice_SubmitSourceBuffer(src, &buffer, NULL);
+		uint32_t hr = FAudioSourceVoice_SubmitSourceBuffer(src, &buffer, NULL);
+		SDL_assert(hr == 0);
 	}
 }
