@@ -109,14 +109,29 @@ uint32_t load_data(const char *filename)
 	uint32_t dwChunkPosition;
 	uint32_t filetype;
 
-	FindChunk(hFile,fourccRIFF, &dwChunkSize, &dwChunkPosition);
-	ReadChunkData(hFile, &filetype, sizeof(uint32_t), dwChunkPosition);
+	if (FindChunk(hFile, fourccRIFF, &dwChunkSize, &dwChunkPosition) != 0)
+	{
+		fclose(hFile);
+		return 1;
+	}
+	if (ReadChunkData(hFile, &filetype, sizeof(uint32_t), dwChunkPosition) != 0)
+	{
+		fclose(hFile);
+		return 1;
+	}
 	
 	if (filetype != fourccWAVE && filetype != fourccXWMA)
+	{
+		fclose(hFile);
 		return 1;
+	}
 
 	/* Locate the 'fmt ' chunk, and copy its contents into a WAVEFORMATEXTENSIBLE structure. */
-	FindChunk(hFile,fourccFMT, &dwChunkSize, &dwChunkPosition );
+	if (FindChunk(hFile, fourccFMT, &dwChunkSize, &dwChunkPosition) != 0)
+	{
+		fclose(hFile);
+		return 1;
+	}
 	if (dwChunkSize > sizeof(FAudioWaveFormatExtensible))
 	{
 		wfx = (FAudioWaveFormatExtensible *) malloc(dwChunkSize);
@@ -127,12 +142,24 @@ uint32_t load_data(const char *filename)
 		wfx = (FAudioWaveFormatExtensible *) malloc(sizeof(FAudioWaveFormatExtensible));
 		printf("chunk-size equal or less than wfx size, capping: %u <= %u\n", dwChunkSize, sizeof(FAudioWaveFormatExtensible));
 	}
-	ReadChunkData(hFile, wfx, dwChunkSize, dwChunkPosition );
+	if (ReadChunkData(hFile, wfx, dwChunkSize, dwChunkPosition) != 0)
+	{
+		fclose(hFile);
+		return 1;
+	}
 
 	/* Locate the 'data' chunk, and read its contents into a buffer. */
-	FindChunk(hFile, fourccDATA, &dwChunkSize, &dwChunkPosition);
+	if (FindChunk(hFile, fourccDATA, &dwChunkSize, &dwChunkPosition) != 0)
+	{
+		fclose(hFile);
+		return 1;
+	}
 	uint8_t *pDataBuffer = (uint8_t *) malloc(dwChunkSize);
-	ReadChunkData(hFile, pDataBuffer, dwChunkSize, dwChunkPosition);
+	if (ReadChunkData(hFile, pDataBuffer, dwChunkSize, dwChunkPosition) != 0)
+	{
+		fclose(hFile);
+		return 1;
+	}
 
 	printf("data chunk size: %u\n", dwChunkSize);
 	buffer.AudioBytes = dwChunkSize;  //buffer containing audio data
@@ -143,7 +170,12 @@ uint32_t load_data(const char *filename)
 	if (FindChunk(hFile, fourccDPDS, &dwChunkSize, &dwChunkPosition) == 0) 
 	{
 		uint32_t *cumulBytes = (uint32_t *) malloc(dwChunkSize);
-		ReadChunkData(hFile, cumulBytes, dwChunkSize, dwChunkPosition);
+		if (ReadChunkData(hFile, cumulBytes, dwChunkSize, dwChunkPosition) != 0)
+		{
+			free(cumulBytes);
+			fclose(hFile);
+			return 1;
+		}
 
 		buffer_wma.pDecodedPacketCumulativeBytes = cumulBytes;
 		buffer_wma.PacketCount = dwChunkSize / sizeof(uint32_t);
@@ -162,6 +194,8 @@ void faudio_setup() {
 
 	hr = FAudio_CreateMasteringVoice(faudio, &mastering_voice, 2, 44100, 0, 0, NULL);
 	if (hr != 0) {
+		FAudio_Release(faudio);
+		faudio = NULL;
 		return;
 	}
 
@@ -173,9 +207,18 @@ void faudio_setup() {
 		FAUDIO_MAX_FREQ_RATIO, 
 		NULL, NULL, NULL
 	);
+	if (hr != 0) {
+		FAudioVoice_DestroyVoice(mastering_voice);
+		mastering_voice = NULL;
+		FAudio_Release(faudio);
+		faudio = NULL;
+	}
 }
 
 void play(void) {
+	if (source_voice == NULL || wfx == NULL) {
+		return;
+	}
 
 	buffer.PlayBegin = argPlayBegin * wfx->Format.nSamplesPerSec;
 	buffer.PlayLength = argPlayLength * wfx->Format.nSamplesPerSec;
@@ -200,9 +243,19 @@ void play(void) {
 	}
 
 	FAudioVoice_DestroyVoice(source_voice);
+	FAudioVoice_DestroyVoice(mastering_voice);
+	FAudio_Release(faudio);
+	source_voice = NULL;
+	mastering_voice = NULL;
+	faudio = NULL;
 
 	/* free allocated space for FAudioWafeFormatExtensible */
 	free(wfx);
+	wfx = NULL;
+	free((void*) buffer.pAudioData);
+	buffer.pAudioData = NULL;
+	free((void*) buffer_wma.pDecodedPacketCumulativeBytes);
+	buffer_wma.pDecodedPacketCumulativeBytes = NULL;
 }
 
 int main(int argc, char *argv[]) {
@@ -219,10 +272,10 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	switch (argc) 
+		switch (argc) 
 	{
 		case 7:
-			sscanf(argv[6], "%d", &argLoopCount);
+			sscanf(argv[6], "%u", &argLoopCount);
 			sscanf(argv[5], "%f", &argLoopLength);
 			sscanf(argv[4], "%f", &argLoopBegin);
 		
