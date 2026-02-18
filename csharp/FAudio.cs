@@ -33,13 +33,13 @@ using System.Text;
 #endregion
 
 public static class FAudio {
-#region Native Library Name
+    #region Native Library Name
 
     const string nativeLibName = "FAudio";
 
-#endregion
+    #endregion
 
-#region UTF8 Marshaling
+    #region UTF8 Marshaling
 
     /* Used for stack allocated string marshaling. */
     private static int Utf8Size(string str) {
@@ -66,9 +66,9 @@ public static class FAudio {
         return buffer;
     }
 
-#endregion
+    #endregion
 
-#region FAudio API
+    #region FAudio API
 
     /* Version */
 
@@ -764,9 +764,9 @@ public static class FAudio {
         public IntPtr OnVoiceProcessingPassStart; /* OnVoiceProcessingPassStartFunc */
     }
 
-#endregion
+    #endregion
 
-#region FAudioFX API
+    #region FAudioFX API
 
     /* TODO */
 
@@ -858,24 +858,24 @@ public static class FAudio {
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint FAudioCreateReverb9(out IntPtr ppApo, uint Flags);
 
-#endregion
+    #endregion
 
-#region FAPO API
+    #region FAPO API
 
     /* TODO */
 
-#endregion
+    #endregion
 
-#region FAPOBase API
+    #region FAPOBase API
 
     /* TODO */
 
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint FAPOBase_Release(IntPtr fapo);
 
-#endregion
+    #endregion
 
-#region FACT API
+    #region FACT API
 
     /* Delegates */
 
@@ -1786,9 +1786,9 @@ public static class FAudio {
         float[] pLevelMatrix /* SourceChannels * DestinationChannels */
     );
 
-#endregion
+    #endregion
 
-#region F3DAudio API
+    #region F3DAudio API
 
     /* Constants */
 
@@ -2000,9 +2000,9 @@ public static class FAudio {
         ref F3DAUDIO_DSP_SETTINGS pDSPSettings
     );
 
-#endregion
+    #endregion
 
-#region FACT3D API
+    #region FACT3D API
 
     /* Constants */
 
@@ -2050,9 +2050,9 @@ public static class FAudio {
         IntPtr pCue /* FACTCue* */
     );
 
-#endregion
+    #endregion
 
-#region XNA Song API
+    #region XNA Song API
 
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void XNA_SongInit();
@@ -2097,9 +2097,9 @@ public static class FAudio {
         uint count
     );
 
-#endregion
+    #endregion
 
-#region FAudio I/O API
+    #region FAudio I/O API
 
     /* Delegates */
 
@@ -2157,9 +2157,9 @@ public static class FAudio {
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void FAudio_close(IntPtr io);
 
-#endregion
+    #endregion
 
-#region stb_vorbis
+    #region stb_vorbis
 
     /* Because why not? */
 
@@ -2306,9 +2306,9 @@ public static class FAudio {
         int num_samples
     );
 
-#endregion
+    #endregion
 
-#region qoa
+    #region qoa
 
     /* Because, again, why not? */
 
@@ -2339,5 +2339,5 @@ public static class FAudio {
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public extern static unsafe void qoa_close(IntPtr qoa);
 
-#endregion
+    #endregion
 }

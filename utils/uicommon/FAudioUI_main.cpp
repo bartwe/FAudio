@@ -105,7 +105,14 @@ static void RenderDrawLists(ImDrawData *draw_data)
 
 static const char* GetClipboardText(void* userdata)
 {
-	return SDL_GetClipboardText();
+	static char *clipboardText = NULL;
+	if (clipboardText != NULL)
+	{
+		SDL_free(clipboardText);
+		clipboardText = NULL;
+	}
+	clipboardText = SDL_GetClipboardText();
+	return clipboardText != NULL ? clipboardText : "";
 }
 
 static void SetClipboardText(void* userdata, const char *text)

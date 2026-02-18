@@ -117,8 +117,8 @@ void faudio_create_voice(AudioContext *context, float *buffer, size_t buffer_siz
 	waveFormat.wFormatTag = 3;
 	waveFormat.nChannels = num_channels;
 	waveFormat.nSamplesPerSec = sample_rate;
-	waveFormat.nAvgBytesPerSec = sample_rate * 4;
 	waveFormat.nBlockAlign = num_channels * 4;
+	waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
 	waveFormat.wBitsPerSample = 32;
 	waveFormat.cbSize = 0;
 

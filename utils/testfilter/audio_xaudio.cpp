@@ -9,6 +9,7 @@ struct AudioContext
 {
 	IXAudio2 *xaudio2;
 	IXAudio2MasteringVoice *mastering_voice;
+	int sample_rate;
 };
 
 struct AudioVoice
@@ -41,6 +42,7 @@ AudioVoice *xaudio_create_voice(AudioContext *p_context, float *p_buffer, size_t
 	waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
 	waveFormat.wBitsPerSample = 32;
 	waveFormat.cbSize = 0;
+	p_context->sample_rate = p_sample_rate;
 
 	IXAudio2SourceVoice *voice;
 	XAUDIO2_SEND_DESCRIPTOR send;
@@ -118,8 +120,13 @@ void xaudio_filter_update(AudioFilter *p_filter, int p_type, float p_cutoff_freq
 {
 	if (p_type != -1)
 	{
+		const float sample_rate = (float) (
+			p_filter->context->sample_rate > 0 ?
+			p_filter->context->sample_rate :
+			44100
+		);
 		p_filter->params.Type = XAUDIO2_FILTER_TYPE(p_type);
-		p_filter->params.Frequency = (float) (2 * sin(PI * p_cutoff_frequency / 44100));
+		p_filter->params.Frequency = (float) (2 * sin(PI * p_cutoff_frequency / sample_rate));
 		p_filter->params.OneOverQ = (float)(1.0 / p_q);
 	}
 	else 
@@ -176,6 +183,7 @@ AudioContext *xaudio_create_context()
 	AudioContext *context = new AudioContext();
 	context->xaudio2 = xaudio2;
 	context->mastering_voice = mastering_voice;
+	context->sample_rate = 0;
 
 	return context;
 }

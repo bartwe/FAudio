@@ -73,6 +73,14 @@ uint32_t FindChunk(FILE *hFile, uint32_t fourcc, uint32_t *dwChunkSize, uint32_t
 		}
 
 		dwOffset += dwChunkDataSize;
+		bytesRead += (sizeof(uint32_t) * 2) + dwChunkDataSize;
+		if (dwChunkDataSize & 1)
+		{
+			if (fseek(hFile, 1, SEEK_CUR) != 0)
+				return 1;
+			dwOffset += 1;
+			bytesRead += 1;
+		}
 
 		if (bytesRead >= dwRIFFDataSize) 
 			return 1;
