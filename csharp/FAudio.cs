@@ -25,47 +25,50 @@
  */
 
 #region Using Statements
+
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+
 #endregion
 
 public static class FAudio {
-    #region Native Library Name
+#region Native Library Name
 
     const string nativeLibName = "FAudio";
 
-    #endregion
+#endregion
 
-    #region UTF8 Marshaling
+#region UTF8 Marshaling
 
     /* Used for stack allocated string marshaling. */
     private static int Utf8Size(string str) {
         return (str.Length * 4) + 1;
     }
+
     private static unsafe byte* Utf8Encode(string str, byte* buffer, int bufferSize) {
         fixed (char* strPtr = str) {
-            Encoding.UTF8.GetBytes(strPtr, str.Length + 1, buffer, bufferSize);
+            _ = Encoding.UTF8.GetBytes(strPtr, str.Length + 1, buffer, bufferSize);
         }
 
         return buffer;
     }
 
     /* Used for heap allocated string marshaling
-	 * Returned byte* must be free'd with FreeHGlobal.
-	 */
+     * Returned byte* must be free'd with FreeHGlobal.
+     */
     private static unsafe byte* Utf8Encode(string str) {
         int bufferSize = (str.Length * 4) + 1;
         byte* buffer = (byte*)Marshal.AllocHGlobal(bufferSize);
         fixed (char* strPtr = str) {
-            Encoding.UTF8.GetBytes(strPtr, str.Length + 1, buffer, bufferSize);
+            _ = Encoding.UTF8.GetBytes(strPtr, str.Length + 1, buffer, bufferSize);
         }
         return buffer;
     }
 
-    #endregion
+#endregion
 
-    #region FAudio API
+#region FAudio API
 
     /* Version */
 
@@ -149,18 +152,19 @@ public static class FAudio {
         public FAudioWaveFormatEx wfx;
         public ushort wSamplesPerBlock;
         public ushort wNumCoef;
+
         public IntPtr aCoef; /* FAudioADPCMCoefSet[] */
         /* MSADPCM has 7 coefficient pairs:
-		 * {
-		 *	{ 256,    0 },
-		 *	{ 512, -256 },
-		 *	{   0,    0 },
-		 *	{ 192,   64 },
-		 *	{ 240,    0 },
-		 *	{ 460, -208 },
-		 *	{ 392, -232 }
-		 * }
-		 */
+         * {
+         *	{ 256,    0 },
+         *	{ 512, -256 },
+         *	{   0,    0 },
+         *	{ 192,   64 },
+         *	{ 240,    0 },
+         *	{ 460, -208 },
+         *	{ 392, -232 }
+         * }
+         */
     }
 
     public struct FAudioXMA2WaveFormatEx {
@@ -760,9 +764,9 @@ public static class FAudio {
         public IntPtr OnVoiceProcessingPassStart; /* OnVoiceProcessingPassStartFunc */
     }
 
-    #endregion
+#endregion
 
-    #region FAudioFX API
+#region FAudioFX API
 
     /* TODO */
 
@@ -854,24 +858,24 @@ public static class FAudio {
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint FAudioCreateReverb9(out IntPtr ppApo, uint Flags);
 
-    #endregion
+#endregion
 
-    #region FAPO API
+#region FAPO API
 
     /* TODO */
 
-    #endregion
+#endregion
 
-    #region FAPOBase API
+#region FAPOBase API
 
     /* TODO */
 
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint FAPOBase_Release(IntPtr fapo);
 
-    #endregion
+#endregion
 
-    #region FACT API
+#region FACT API
 
     /* Delegates */
 
@@ -966,26 +970,26 @@ public static class FAudio {
     }
 
     /* TODO
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	public struct FACTWaveBankHeader
-	{
-		public uint dwSignature;
-		public uint dwVersion;
-		public uint dwHeaderVersion;
-		public fixed FACTWaveBankRegion Segments[FACT_WAVEBANK_SEGIDX_COUNT];
-	}
-	*/
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct FACTWaveBankHeader
+    {
+        public uint dwSignature;
+        public uint dwVersion;
+        public uint dwHeaderVersion;
+        public fixed FACTWaveBankRegion Segments[FACT_WAVEBANK_SEGIDX_COUNT];
+    }
+    */
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)] /* FIXME: union! */
     public struct FACTWaveBankMiniWaveFormat {
         /*struct
-		{
-			public uint wFormatTag : 2;
-			public uint nChannels : 3;
-			public uint nSamplesPerSec : 18;
-			public uint wBlockAlign : 8;
-			public uint wBitsPerSample : 1;
-		};*/
+        {
+            public uint wFormatTag : 2;
+            public uint nChannels : 3;
+            public uint nSamplesPerSec : 18;
+            public uint wBlockAlign : 8;
+            public uint wBitsPerSample : 1;
+        };*/
         public uint dwValue;
     }
 
@@ -998,13 +1002,13 @@ public static class FAudio {
     }
 
     /* TODO
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
-	public struct FACTWaveBankEntryCompact
-	{
-		public uint dwOffset : 21;
-		public uint dwLengthDeviation : 11;
-	}
-	*/
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct FACTWaveBankEntryCompact
+    {
+        public uint dwOffset : 21;
+        public uint dwLengthDeviation : 11;
+    }
+    */
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public unsafe struct FACTWaveBankData {
@@ -1151,16 +1155,22 @@ public static class FAudio {
     public struct FACTNotification_union {
         [FieldOffset(0)]
         public FACTNotificationCue cue;
+
         [FieldOffset(0)]
         public FACTNotificationMarker marker;
+
         [FieldOffset(0)]
         public FACTNotificationSoundBank soundBank;
+
         [FieldOffset(0)]
         public FACTNotificationWaveBank waveBank;
+
         [FieldOffset(0)]
         public FACTNotificationVariable variable;
+
         [FieldOffset(0)]
         public FACTNotificationGUI gui;
+
         [FieldOffset(0)]
         public FACTNotificationWave wave;
     }
@@ -1335,6 +1345,7 @@ public static class FAudio {
         byte nLoopCount,
         out IntPtr ppWave /* FACTWave** */
     );
+
     public static unsafe uint FACTAudioEngine_PrepareWave(
         IntPtr pEngine, /* FACTAudioEngine* */
         uint dwFlags,
@@ -1403,6 +1414,7 @@ public static class FAudio {
         IntPtr pEngine, /* FACTAudioEngine* */
         byte* szFriendlyName
     );
+
     public static unsafe ushort FACTAudioEngine_GetCategory(
         IntPtr pEngine, /* FACTAudioEngine* */
         string szFriendlyName
@@ -1441,6 +1453,7 @@ public static class FAudio {
         IntPtr pEngine, /* FACTAudioEngine* */
         byte* szFriendlyName
     );
+
     public static unsafe ushort FACTAudioEngine_GetGlobalVariableIndex(
         IntPtr pEngine, /* FACTAudioEngine* */
         string szFriendlyName
@@ -1474,6 +1487,7 @@ public static class FAudio {
         IntPtr pSoundBank, /* FACTSoundBank* */
         byte* szFriendlyName
     );
+
     public static unsafe ushort FACTSoundBank_GetCueIndex(
         IntPtr pSoundBank, /* FACTSoundBank* */
         string szFriendlyName
@@ -1578,6 +1592,7 @@ public static class FAudio {
         IntPtr pWaveBank, /* FACTWaveBank* */
         byte* szFriendlyName
     );
+
     public static unsafe ushort FACTWaveBank_GetWaveIndex(
         IntPtr pWaveBank, /* FACTWaveBank* */
         string szFriendlyName
@@ -1717,6 +1732,7 @@ public static class FAudio {
         IntPtr pCue, /* FACTCue* */
         byte* szFriendlyName
     );
+
     public static unsafe ushort FACTCue_GetVariableIndex(
         IntPtr pCue, /* FACTCue* */
         string szFriendlyName
@@ -1770,9 +1786,9 @@ public static class FAudio {
         float[] pLevelMatrix /* SourceChannels * DestinationChannels */
     );
 
-    #endregion
+#endregion
 
-    #region F3DAudio API
+#region F3DAudio API
 
     /* Constants */
 
@@ -1797,26 +1813,31 @@ public static class FAudio {
 
     public const uint SPEAKER_MONO = SPEAKER_FRONT_CENTER;
     public const uint SPEAKER_STEREO = (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT);
+
     public const uint SPEAKER_2POINT1 =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
             SPEAKER_LOW_FREQUENCY);
+
     public const uint SPEAKER_SURROUND =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
             SPEAKER_FRONT_CENTER |
             SPEAKER_BACK_CENTER);
+
     public const uint SPEAKER_QUAD =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
             SPEAKER_BACK_LEFT |
             SPEAKER_BACK_RIGHT);
+
     public const uint SPEAKER_4POINT1 =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
             SPEAKER_LOW_FREQUENCY |
             SPEAKER_BACK_LEFT |
             SPEAKER_BACK_RIGHT);
+
     public const uint SPEAKER_5POINT1 =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
@@ -1824,6 +1845,7 @@ public static class FAudio {
             SPEAKER_LOW_FREQUENCY |
             SPEAKER_BACK_LEFT |
             SPEAKER_BACK_RIGHT);
+
     public const uint SPEAKER_7POINT1 =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
@@ -1833,6 +1855,7 @@ public static class FAudio {
             SPEAKER_BACK_RIGHT |
             SPEAKER_FRONT_LEFT_OF_CENTER |
             SPEAKER_FRONT_RIGHT_OF_CENTER);
+
     public const uint SPEAKER_5POINT1_SURROUND =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
@@ -1840,6 +1863,7 @@ public static class FAudio {
             SPEAKER_LOW_FREQUENCY |
             SPEAKER_SIDE_LEFT |
             SPEAKER_SIDE_RIGHT);
+
     public const uint SPEAKER_7POINT1_SURROUND =
         (SPEAKER_FRONT_LEFT |
             SPEAKER_FRONT_RIGHT |
@@ -1976,9 +2000,9 @@ public static class FAudio {
         ref F3DAUDIO_DSP_SETTINGS pDSPSettings
     );
 
-    #endregion
+#endregion
 
-    #region FACT3D API
+#region FACT3D API
 
     /* Constants */
 
@@ -1994,51 +2018,14 @@ public static class FAudio {
     public const float FRONT_LEFT_OF_CENTER_AZIMUTH = (15.0f * F3DAUDIO_PI / 8.0f);
     public const float FRONT_RIGHT_OF_CENTER_AZIMUTH = (F3DAUDIO_PI / 8.0f);
 
-    public static readonly float[] aStereoLayout = new float[]
-    {
-        LEFT_AZIMUTH,
-        RIGHT_AZIMUTH
-    };
-    public static readonly float[] a2Point1Layout = new float[]
-    {
-        LEFT_AZIMUTH,
-        RIGHT_AZIMUTH,
-        LOW_FREQUENCY_AZIMUTH
-    };
-    public static readonly float[] aQuadLayout = new float[]
-    {
-        FRONT_LEFT_AZIMUTH,
-        FRONT_RIGHT_AZIMUTH,
-        BACK_LEFT_AZIMUTH,
-        BACK_RIGHT_AZIMUTH
-    };
-    public static readonly float[] a4Point1Layout = new float[]
-    {
-        FRONT_LEFT_AZIMUTH,
-        FRONT_RIGHT_AZIMUTH,
-        LOW_FREQUENCY_AZIMUTH,
-        BACK_LEFT_AZIMUTH,
-        BACK_RIGHT_AZIMUTH
-    };
-    public static readonly float[] a5Point1Layout = new float[]
-    {
-        FRONT_LEFT_AZIMUTH,
-        FRONT_RIGHT_AZIMUTH,
-        FRONT_CENTER_AZIMUTH,
-        LOW_FREQUENCY_AZIMUTH,
-        BACK_LEFT_AZIMUTH,
-        BACK_RIGHT_AZIMUTH
-    };
-    public static readonly float[] a7Point1Layout = new float[]
-    {
-        FRONT_LEFT_AZIMUTH,
-        FRONT_RIGHT_AZIMUTH,
-        FRONT_CENTER_AZIMUTH,
-        LOW_FREQUENCY_AZIMUTH,
-        BACK_LEFT_AZIMUTH,
-        BACK_RIGHT_AZIMUTH,
-        LEFT_AZIMUTH,
-        RIGHT_AZIMUTH
+    public static readonly float[] aStereoLayout = new float[] { LEFT_AZIMUTH, RIGHT_AZIMUTH };
+    public static readonly float[] a2Point1Layout = new float[] { LEFT_AZIMUTH, RIGHT_AZIMUTH, LOW_FREQUENCY_AZIMUTH };
+    public static readonly float[] aQuadLayout = new float[] { FRONT_LEFT_AZIMUTH, FRONT_RIGHT_AZIMUTH, BACK_LEFT_AZIMUTH, BACK_RIGHT_AZIMUTH };
+    public static readonly float[] a4Point1Layout = new float[] { FRONT_LEFT_AZIMUTH, FRONT_RIGHT_AZIMUTH, LOW_FREQUENCY_AZIMUTH, BACK_LEFT_AZIMUTH, BACK_RIGHT_AZIMUTH };
+    public static readonly float[] a5Point1Layout = new float[] { FRONT_LEFT_AZIMUTH, FRONT_RIGHT_AZIMUTH, FRONT_CENTER_AZIMUTH, LOW_FREQUENCY_AZIMUTH, BACK_LEFT_AZIMUTH, BACK_RIGHT_AZIMUTH };
+
+    public static readonly float[] a7Point1Layout = new float[] {
+        FRONT_LEFT_AZIMUTH, FRONT_RIGHT_AZIMUTH, FRONT_CENTER_AZIMUTH, LOW_FREQUENCY_AZIMUTH, BACK_LEFT_AZIMUTH, BACK_RIGHT_AZIMUTH, LEFT_AZIMUTH, RIGHT_AZIMUTH
     };
 
     /* Functions */
@@ -2063,9 +2050,9 @@ public static class FAudio {
         IntPtr pCue /* FACTCue* */
     );
 
-    #endregion
+#endregion
 
-    #region XNA Song API
+#region XNA Song API
 
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void XNA_SongInit();
@@ -2075,6 +2062,7 @@ public static class FAudio {
 
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     private static extern unsafe float XNA_PlaySong(byte* name);
+
     public static unsafe float XNA_PlaySong(string name) {
         int utf8BufSize = Utf8Size(name);
         byte* utf8Buf = stackalloc byte[utf8BufSize];
@@ -2109,9 +2097,9 @@ public static class FAudio {
         uint count
     );
 
-    #endregion
+#endregion
 
-    #region FAudio I/O API
+#region FAudio I/O API
 
     /* Delegates */
 
@@ -2150,6 +2138,7 @@ public static class FAudio {
     /* IntPtr refers to an FAudioIOStream* */
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     private static extern unsafe IntPtr FAudio_fopen(byte* path);
+
     public static unsafe IntPtr FAudio_fopen(string path) {
         int utf8BufSize = Utf8Size(path);
         byte* utf8Buf = stackalloc byte[utf8BufSize];
@@ -2168,9 +2157,9 @@ public static class FAudio {
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void FAudio_close(IntPtr io);
 
-    #endregion
+#endregion
 
-    #region stb_vorbis
+#region stb_vorbis
 
     /* Because why not? */
 
@@ -2232,6 +2221,7 @@ public static class FAudio {
         out int error,
         IntPtr alloc_buffer /* stb_vorbis_alloc* */
     );
+
     public static unsafe IntPtr stb_vorbis_open_filename(
         string filename,
         out int error,
@@ -2316,9 +2306,9 @@ public static class FAudio {
         int num_samples
     );
 
-    #endregion
+#endregion
 
-    #region qoa
+#region qoa
 
     /* Because, again, why not? */
 
@@ -2326,18 +2316,12 @@ public static class FAudio {
     public extern static unsafe IntPtr qoa_open_from_memory(char* bytes, uint size, int free_on_close);
 
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
-    private static extern unsafe IntPtr qoa_open_from_filename(
-        byte* filename
-    );
+    private static extern unsafe IntPtr qoa_open_from_filename(byte* filename);
 
-    public static unsafe IntPtr qoa_open_from_filename(
-        string filename
-    ) {
+    public static unsafe IntPtr qoa_open_from_filename(string filename) {
         int utf8BufSize = Utf8Size(filename);
         byte* utf8Buf = stackalloc byte[utf8BufSize];
-        return qoa_open_from_filename(
-            Utf8Encode(filename, utf8Buf, utf8BufSize)
-        );
+        return qoa_open_from_filename(Utf8Encode(filename, utf8Buf, utf8BufSize));
     }
 
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
@@ -2355,5 +2339,5 @@ public static class FAudio {
     [DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
     public extern static unsafe void qoa_close(IntPtr qoa);
 
-    #endregion
+#endregion
 }
