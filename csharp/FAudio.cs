@@ -58,8 +58,8 @@ public static class FAudio {
      * Returned byte* must be free'd with FreeHGlobal.
      */
     private static unsafe byte* Utf8Encode(string str) {
-        int bufferSize = (str.Length * 4) + 1;
-        byte* buffer = (byte*)Marshal.AllocHGlobal(bufferSize);
+        var bufferSize = (str.Length * 4) + 1;
+        var buffer = (byte*)Marshal.AllocHGlobal(bufferSize);
         fixed (char* strPtr = str) {
             _ = Encoding.UTF8.GetBytes(strPtr, str.Length + 1, buffer, bufferSize);
         }
@@ -1356,8 +1356,8 @@ public static class FAudio {
         byte nLoopCount,
         out IntPtr ppWave /* FACTWave** */
     ) {
-        byte* utf8WavePath = Utf8Encode(szWavePath);
-        uint result = FACTAudioEngine_PrepareWave(
+        var utf8WavePath = Utf8Encode(szWavePath);
+        var result = FACTAudioEngine_PrepareWave(
             pEngine,
             dwFlags,
             utf8WavePath,
@@ -1419,8 +1419,8 @@ public static class FAudio {
         IntPtr pEngine, /* FACTAudioEngine* */
         string szFriendlyName
     ) {
-        int utf8BufSize = Utf8Size(szFriendlyName);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(szFriendlyName);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return FACTAudioEngine_GetCategory(
             pEngine,
             Utf8Encode(szFriendlyName, utf8Buf, utf8BufSize)
@@ -1458,8 +1458,8 @@ public static class FAudio {
         IntPtr pEngine, /* FACTAudioEngine* */
         string szFriendlyName
     ) {
-        int utf8BufSize = Utf8Size(szFriendlyName);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(szFriendlyName);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return FACTAudioEngine_GetGlobalVariableIndex(
             pEngine,
             Utf8Encode(szFriendlyName, utf8Buf, utf8BufSize)
@@ -1492,8 +1492,8 @@ public static class FAudio {
         IntPtr pSoundBank, /* FACTSoundBank* */
         string szFriendlyName
     ) {
-        int utf8BufSize = Utf8Size(szFriendlyName);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(szFriendlyName);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return FACTSoundBank_GetCueIndex(
             pSoundBank,
             Utf8Encode(szFriendlyName, utf8Buf, utf8BufSize)
@@ -1597,8 +1597,8 @@ public static class FAudio {
         IntPtr pWaveBank, /* FACTWaveBank* */
         string szFriendlyName
     ) {
-        int utf8BufSize = Utf8Size(szFriendlyName);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(szFriendlyName);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return FACTWaveBank_GetWaveIndex(
             pWaveBank,
             Utf8Encode(szFriendlyName, utf8Buf, utf8BufSize)
@@ -1737,8 +1737,8 @@ public static class FAudio {
         IntPtr pCue, /* FACTCue* */
         string szFriendlyName
     ) {
-        int utf8BufSize = Utf8Size(szFriendlyName);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(szFriendlyName);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return FACTCue_GetVariableIndex(
             pCue,
             Utf8Encode(szFriendlyName, utf8Buf, utf8BufSize)
@@ -2064,8 +2064,8 @@ public static class FAudio {
     private static extern unsafe float XNA_PlaySong(byte* name);
 
     public static unsafe float XNA_PlaySong(string name) {
-        int utf8BufSize = Utf8Size(name);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(name);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return XNA_PlaySong(Utf8Encode(name, utf8Buf, utf8BufSize));
     }
 
@@ -2140,8 +2140,8 @@ public static class FAudio {
     private static extern unsafe IntPtr FAudio_fopen(byte* path);
 
     public static unsafe IntPtr FAudio_fopen(string path) {
-        int utf8BufSize = Utf8Size(path);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(path);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return FAudio_fopen(Utf8Encode(path, utf8Buf, utf8BufSize));
     }
 
@@ -2227,8 +2227,8 @@ public static class FAudio {
         out int error,
         IntPtr alloc_buffer /* stb_vorbis_alloc* */
     ) {
-        int utf8BufSize = Utf8Size(filename);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(filename);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return stb_vorbis_open_filename(
             Utf8Encode(filename, utf8Buf, utf8BufSize),
             out error,
@@ -2319,8 +2319,8 @@ public static class FAudio {
     private static extern unsafe IntPtr qoa_open_from_filename(byte* filename);
 
     public static unsafe IntPtr qoa_open_from_filename(string filename) {
-        int utf8BufSize = Utf8Size(filename);
-        byte* utf8Buf = stackalloc byte[utf8BufSize];
+        var utf8BufSize = Utf8Size(filename);
+        var utf8Buf = stackalloc byte[utf8BufSize];
         return qoa_open_from_filename(Utf8Encode(filename, utf8Buf, utf8BufSize));
     }
 
