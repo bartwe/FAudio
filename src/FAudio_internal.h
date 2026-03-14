@@ -208,6 +208,22 @@ extern void FAudio_Log(char const *msg);
 #define FAudio_getenv SDL_getenv
 #define FAudio_PRIu64 SDL_PRIu64
 #define FAudio_PRIx64 SDL_PRIx64
+
+#ifdef FAUDIO_SDL3_PLATFORM
+#define FAudio_swap16LE(x) SDL_Swap16LE(x)
+#define FAudio_swap16BE(x) SDL_Swap16BE(x)
+#define FAudio_swap32LE(x) SDL_Swap32LE(x)
+#define FAudio_swap32BE(x) SDL_Swap32BE(x)
+#define FAudio_swap64LE(x) SDL_Swap64LE(x)
+#define FAudio_swap64BE(x) SDL_Swap64BE(x)
+#else
+#define FAudio_swap16LE(x) SDL_SwapLE16(x)
+#define FAudio_swap16BE(x) SDL_SwapBE16(x)
+#define FAudio_swap32LE(x) SDL_SwapLE32(x)
+#define FAudio_swap32BE(x) SDL_SwapBE32(x)
+#define FAudio_swap64LE(x) SDL_SwapLE64(x)
+#define FAudio_swap64BE(x) SDL_SwapBE64(x)
+#endif
 #endif
 
 /* Easy Macros */
