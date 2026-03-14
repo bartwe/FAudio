@@ -211,7 +211,11 @@ CREDITS
 #ifdef memcpy /* Thanks Apple! */
 #undef memcpy
 #endif
+#ifdef FAUDIO_SDL3_PLATFORM
+#define memcpy SDL_memcpy
+#else
 #define memcpy FAudio_memcpy
+#endif
 #endif
 
 //////////////////////////////////////////////////////////////////////////////

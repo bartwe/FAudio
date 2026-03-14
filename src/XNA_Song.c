@@ -30,22 +30,36 @@
 
 /* stb_vorbis */
 
+#ifdef FAUDIO_SDL3_PLATFORM
+#define malloc SDL_malloc
+#define realloc SDL_realloc
+#define free SDL_free
+#else
 #define malloc FAudio_malloc
 #define realloc FAudio_realloc
 #define free FAudio_free
-#ifdef STB_MEMSET_OVERRIDE
+#endif
 #ifdef memset /* Thanks, Apple! */
 #undef memset
 #endif
+#ifdef FAUDIO_SDL3_PLATFORM
+#define memset SDL_memset
+#else
 #define memset FAudio_memset
-#endif /* STB_MEMSET_OVERRIDE */
-#ifdef STB_MEMCPY_OVERRIDE
+#endif
 #ifdef memcpy /* Thanks, Apple! */
 #undef memcpy
 #endif
+#ifdef FAUDIO_SDL3_PLATFORM
+#define memcpy SDL_memcpy
+#else
 #define memcpy FAudio_memcpy
-#endif /* STB_MEMCPY_OVERRIDE */
+#endif
+#ifdef FAUDIO_SDL3_PLATFORM
+#define memcmp SDL_memcmp
+#else
 #define memcmp FAudio_memcmp
+#endif
 
 #define pow FAudio_pow
 #define log(x) FAudio_log(x)
@@ -56,9 +70,17 @@
 #define ldexp(v, e) FAudio_ldexp((v), (e))
 #define exp(x) FAudio_exp(x)
 
+#ifdef FAUDIO_SDL3_PLATFORM
+#define qsort SDL_qsort
+#else
 #define qsort FAudio_qsort
+#endif
 
+#ifdef FAUDIO_SDL3_PLATFORM
+#define assert SDL_assert
+#else
 #define assert FAudio_assert
+#endif
 
 #define FILE FAudioIOStream
 #ifdef SEEK_SET
