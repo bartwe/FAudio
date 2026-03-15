@@ -504,7 +504,7 @@ static bool get_active_variation_index(FACTCue *cue, uint16_t *index)
 			max += (variation->noninteractive.weight_max - variation->noninteractive.weight_min);
 		}
 
-		value = FACT_INTERNAL_rng() * max;
+		value = (uint32_t) (FACT_INTERNAL_rng() * max);
 
 		for (int32_t i = table->entryCount - 1; i > 0; --i)
 		{
@@ -601,7 +601,7 @@ static bool handle_instance_limit(FACTCue *cue, FACTAudioCategory *category)
 void create_sound(FACTCue *cue)
 {
 	int32_t i, j, k;
-	float max, next, weight;
+	float max, next;
 	const char *wbName;
 	FACTWaveBank *wb = NULL;
 	LinkedList *list;
@@ -611,8 +611,6 @@ void create_sound(FACTCue *cue)
 	FACTSoundInstance *newSound;
 	FACTRPC *rpc;
 	float lastX;
-	uint16_t categoryIndex;
-	FACTAudioCategory *category;
 	uint16_t variation_index;
 
 	if (cue->data->flags & CUE_FLAG_SINGLE_SOUND)
@@ -2474,7 +2472,7 @@ uint32_t FACT_INTERNAL_ParseSoundBank(
 	FACTSound *sounds;
 	uint8_t platform;
 	size_t memsize;
-	uint16_t i, j, k, cur, tool;
+	uint16_t i, j, cur, tool;
 	const uint8_t *ptrBookmark;
 
 	const uint8_t *ptr = pvBuffer;
@@ -2784,8 +2782,13 @@ uint32_t FACT_INTERNAL_ParseSoundBank(
 	for (i = 0; i < sb->variationCount; i += 1)
 	{
 		FACTVariationTable *table = &sb->variations[i];
+		size_t tableOffset = (size_t) (ptr - start);
 
-		table->code = ptr - start;
+		if (tableOffset > dwSize)
+		{
+			return FACTENGINE_E_INVALIDDATA;
+		}
+		table->code = (uint32_t) tableOffset;
 		entryCountAndFlags = read_u32(&ptr, se);
 		table->entryCount = entryCountAndFlags & 0xFFFF;
 		table->type = (entryCountAndFlags >> (16 + 3)) & 0x07;
