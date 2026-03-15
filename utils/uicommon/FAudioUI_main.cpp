@@ -155,7 +155,7 @@ int main(int argc, char **argv)
 	SDL_Keymod kmod;
 	uint8_t mouseClicked[3] = { 0, 0, 0 };
 	int8_t mouseWheel = 0;
-	int mx, my;
+	float mx, my;
 	uint32_t mouseState;
 	int ww, wh, dw, dh;
 	Uint32 tCur, tLast = 0;
