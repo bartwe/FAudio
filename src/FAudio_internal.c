@@ -165,29 +165,29 @@ void FAudio_INTERNAL_debug_fmt(
 
 bool array_reserve(FAudio *audio, void **elements, size_t *capacity, size_t count, size_t size)
 {
-    unsigned int new_capacity, max_capacity;
-    void *new_elements;
+	size_t new_capacity, max_capacity;
+	void *new_elements;
 
-    if (count <= *capacity)
-        return true;
+	if (count <= *capacity)
+		return true;
 
-    max_capacity = ~(size_t)0 / size;
-    if (count > max_capacity)
-        return false;
+	max_capacity = ~(size_t) 0 / size;
+	if (count > max_capacity)
+		return false;
 
-    new_capacity = FAudio_max(4, *capacity);
-    while (new_capacity < count && new_capacity <= max_capacity / 2)
-        new_capacity *= 2;
-    if (new_capacity < count)
-        new_capacity = max_capacity;
+	new_capacity = FAudio_max((size_t) 4, *capacity);
+	while (new_capacity < count && new_capacity <= max_capacity / 2)
+		new_capacity *= 2;
+	if (new_capacity < count)
+		new_capacity = max_capacity;
 
-    if (!(new_elements = audio->pRealloc(*elements, new_capacity * size)))
-        return false;
+	if (!(new_elements = audio->pRealloc(*elements, new_capacity * size)))
+		return false;
 
-    *elements = new_elements;
-    *capacity = new_capacity;
+	*elements = new_elements;
+	*capacity = new_capacity;
 
-    return true;
+	return true;
 }
 
 void LinkedList_AddEntry(
@@ -329,7 +329,6 @@ static uint32_t FAudio_INTERNAL_GetBytesRequested(
 	const uint32_t block_size = voice->src.format->nBlockAlign;
 	const uint32_t samples_per_block = voice->src.samples_per_block;
 	uint32_t result = (decoding * block_size / samples_per_block);
-	FAudioWaveFormatExtensible *fmt;
 
 	LOG_FUNC_ENTER(voice->audio)
 
@@ -661,8 +660,10 @@ static void FAudio_INTERNAL_DecodeBuffers(
 		start_buffer(voice, buffer);
 
 		/* Number of samples we are decoding in one call. */
-		decode_count = FAudio_min(*toDecode - decoded,
-			buffer_get_end(voice, buffer) - voice->src.curBufferOffset);
+		decode_count = (uint32_t) FAudio_min(
+			*toDecode - decoded,
+			buffer_get_end(voice, buffer) - voice->src.curBufferOffset
+		);
 
 #ifdef HAVE_WMADEC
 		if (voice->src.wmadec)
@@ -1891,7 +1892,7 @@ static float FAudio_INTERNAL_ParseNibble(
 	{
 		*delta = 16;
 	}
-	return sample / 32768.0;
+	return sample / 32768.0f;
 }
 
 static void decode_mono_adpcm_block(const uint8_t *src, float *dst, uint32_t offset, uint32_t count)
@@ -1911,8 +1912,8 @@ static void decode_mono_adpcm_block(const uint8_t *src, float *dst, uint32_t off
 	src += 7;
 
 	/* Samples */
-	*dst++ = sample2 / 32768.0;
-	*dst++ = sample1 / 32768.0;
+	*dst++ = sample2 / 32768.0f;
+	*dst++ = sample1 / 32768.0f;
 	for (i = 0; i < offset + count; i += 2)
 	{
 		float high, low;
@@ -1968,10 +1969,10 @@ static void decode_stereo_adpcm_block(const uint8_t *src, float *dst, uint32_t o
 	src += 14;
 
 	/* Samples */
-	*dst++ = l_sample2 / 32768.0;
-	*dst++ = r_sample2 / 32768.0;
-	*dst++ = l_sample1 / 32768.0;
-	*dst++ = r_sample1 / 32768.0;
+	*dst++ = l_sample2 / 32768.0f;
+	*dst++ = r_sample2 / 32768.0f;
+	*dst++ = l_sample1 / 32768.0f;
+	*dst++ = r_sample1 / 32768.0f;
 
 	for (i = 0; i < offset + count; ++i)
 	{
