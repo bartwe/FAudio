@@ -2,8 +2,10 @@
 *.so
 *.dylib
 *.dll
+build/
 .vs/
 obj/
+csharp/bin/
 Debug/
 Release/
 *.csproj.user

@@ -30,6 +30,11 @@ float* WAVS_Open(
 	unsigned int *wav_samplerate,
 	drwav_uint64 *wav_sample_count
 ) {
+	if (sample < AudioWave_SnareDrum01 || sample > AudioWave_SnareDrum03)
+	{
+		return NULL;
+	}
+
 	return drwav_open_file_and_read_pcm_frames_f32(
 		(!stereo) ?
 			audio_sample_filenames[sample] :

@@ -2969,10 +2969,12 @@ void FAudioSourceVoice_GetState(
 
 	if (voice->src.queued_buffer_count && voice->src.queued_buffers[0].sent_OnStartBuffer)
 		pVoiceState->pCurrentBufferContext = voice->src.queued_buffers[0].buffer.pContext;
-	pVoiceState->BuffersQueued += voice->src.queued_buffer_count;
+	FAudio_assert(voice->src.queued_buffer_count <= UINT32_MAX);
+	pVoiceState->BuffersQueued += (uint32_t) voice->src.queued_buffer_count;
 
 	/* Pending flushed buffers also count */
-	pVoiceState->BuffersQueued += voice->src.flush_buffer_count;
+	FAudio_assert(voice->src.flush_buffer_count <= UINT32_MAX - pVoiceState->BuffersQueued);
+	pVoiceState->BuffersQueued += (uint32_t) voice->src.flush_buffer_count;
 
 	LOG_INFO(
 		voice->audio,

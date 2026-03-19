@@ -71,6 +71,7 @@ AudioVoice *xaudio_create_voice(AudioContext *p_context, float *p_buffer, size_t
 	hr = voice->SubmitSourceBuffer(&buffer);
 
 	if (FAILED(hr)) {
+		voice->DestroyVoice();
 		return NULL;
 	}
 
@@ -86,7 +87,14 @@ AudioVoice *xaudio_create_voice(AudioContext *p_context, float *p_buffer, size_t
 
 void xaudio_voice_destroy(AudioVoice *p_voice)
 {
-
+	if (p_voice != NULL)
+	{
+		if (p_voice->voice != NULL)
+		{
+			p_voice->voice->DestroyVoice();
+		}
+		delete p_voice;
+	}
 }
 
 void xaudio_voice_set_volume(AudioVoice *p_voice, float p_volume)
@@ -159,7 +167,10 @@ AudioContext *xaudio_create_context()
 
 	hr = xaudio2->CreateMasteringVoice(&mastering_voice);
 	if (FAILED(hr))
+	{
+		xaudio2->Release();
 		return NULL;
+	}
 
 	// return a context object
 	AudioContext *context = new AudioContext();

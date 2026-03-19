@@ -541,7 +541,6 @@ uint32_t FACTAudioEngine_DoWork(FACTAudioEngine *pEngine)
 	uint8_t i;
 	FACTCue *cue;
 	LinkedList *list;
-	FACTNotification *note;
 
 	FAudio_PlatformLockMutex(pEngine->apiLock);
 
@@ -634,7 +633,6 @@ uint32_t FACTAudioEngine_CreateStreamingWaveBank(
 	const FACTStreamingParameters *pParms,
 	FACTWaveBank **ppWaveBank
 ) {
-	FACTNotification *note;
 	uint32_t retval, packetSize;
 	FAudio_PlatformLockMutex(pEngine->apiLock);
 	if (	pEngine->pReadFile == FACT_INTERNAL_DefaultReadFile &&
@@ -1459,7 +1457,6 @@ uint32_t FACTWaveBank_Destroy(FACTWaveBank *pWaveBank)
 	uint32_t i;
 	FACTWave *wave;
 	FAudioMutex mutex;
-	FACTNotification note;
 	if (pWaveBank == NULL)
 	{
 		return 1;
