@@ -128,6 +128,8 @@ uint32_t FAudioCOMConstructWithCustomAllocatorEXT(
 #ifndef FAUDIO_DISABLE_DEBUGCONFIGURATION
 	FAudio_SetDebugConfiguration(*ppFAudio, &debugInit, NULL);
 #endif /* FAUDIO_DISABLE_DEBUGCONFIGURATION */
+	(*ppFAudio)->refLock = FAudio_PlatformCreateMutex();
+	LOG_MUTEX_CREATE((*ppFAudio), (*ppFAudio)->refLock)
 	(*ppFAudio)->sourceLock = FAudio_PlatformCreateMutex();
 	LOG_MUTEX_CREATE((*ppFAudio), (*ppFAudio)->sourceLock)
 	(*ppFAudio)->submixLock = FAudio_PlatformCreateMutex();
@@ -145,10 +147,20 @@ uint32_t FAudioCOMConstructWithCustomAllocatorEXT(
 
 uint32_t FAudio_AddRef(FAudio *audio)
 {
+	uint32_t refcount;
+
 	LOG_API_ENTER(audio)
+
+	// FIXME: This should be SDL_AtomicIncRef -flibit
+	FAudio_PlatformLockMutex(audio->refLock);
+	LOG_MUTEX_LOCK(audio, audio->refLock)
 	audio->refcount += 1;
+	refcount = audio->refcount;
+	FAudio_PlatformUnlockMutex(audio->refLock);
+	LOG_MUTEX_UNLOCK(audio, audio->refLock)
+
 	LOG_API_EXIT(audio)
-	return audio->refcount;
+	return refcount;
 }
 
 static void destroy_voice(FAudioVoice *voice);
@@ -159,8 +171,15 @@ uint32_t FAudio_Release(FAudio *audio)
 	FAudioVoice *voice;
 
 	LOG_API_ENTER(audio)
+
+	// FIXME: This should be SDL_AtomicDecRef -flibit
+	FAudio_PlatformLockMutex(audio->refLock);
+	LOG_MUTEX_LOCK(audio, audio->refLock)
 	audio->refcount -= 1;
 	refcount = audio->refcount;
+	FAudio_PlatformUnlockMutex(audio->refLock);
+	LOG_MUTEX_UNLOCK(audio, audio->refLock)
+
 	if (audio->refcount == 0)
 	{
 		while (audio->sources)
@@ -180,6 +199,8 @@ uint32_t FAudio_Release(FAudio *audio)
 		audio->pFree(audio->decodeCache);
 		audio->pFree(audio->resampleCache);
 		audio->pFree(audio->effectChainCache);
+		LOG_MUTEX_DESTROY(audio, audio->refLock)
+		FAudio_PlatformDestroyMutex(audio->refLock);
 		LOG_MUTEX_DESTROY(audio, audio->sourceLock)
 		FAudio_PlatformDestroyMutex(audio->sourceLock);
 		LOG_MUTEX_DESTROY(audio, audio->submixLock)
@@ -345,6 +366,12 @@ uint32_t FAudio_CreateSourceVoice(
 
 	LOG_API_ENTER(audio)
 	LOG_FORMAT(audio, pSourceFormat)
+
+	if (pSendList == NULL && audio->master == NULL)
+	{
+		LOG_ERROR(audio, "%s", "CreateSourceVoice called before mastering voice was initialized");
+		return FAUDIO_E_INVALID_CALL;
+	}
 
 	*ppSourceVoice = (FAudioSourceVoice*) audio->pMalloc(sizeof(FAudioVoice));
 	FAudio_zero(*ppSourceVoice, sizeof(FAudioSourceVoice));
@@ -670,6 +697,12 @@ uint32_t FAudio_CreateSubmixVoice(
 	uint32_t i;
 
 	LOG_API_ENTER(audio)
+
+	if (pSendList == NULL && audio->master == NULL)
+	{
+		LOG_ERROR(audio, "%s", "CreateSubmixVoice called before mastering voice was initialized");
+		return FAUDIO_E_INVALID_CALL;
+	}
 
 	*ppSubmixVoice = (FAudioSubmixVoice*) audio->pMalloc(sizeof(FAudioVoice));
 	FAudio_zero(*ppSubmixVoice, sizeof(FAudioSubmixVoice));
@@ -2455,14 +2488,18 @@ static void destroy_voice(FAudioVoice *voice)
 			FAudio_PlatformLockMutex(voice->audio->sourceLock);
 			LOG_MUTEX_LOCK(voice->audio, voice->audio->sourceLock)
 		}
+		FAudio_PlatformUnlockMutex(voice->audio->sourceLock);
+		LOG_MUTEX_UNLOCK(voice->audio, voice->audio->sourceLock)
+		/* LinkedList_RemoveEntry does its own lock/unlock of
+		 * sourceLock internally, so we must not hold it here.
+		 * SDL3 mutexes are non-recursive and would self-deadlock.
+		 */
 		LinkedList_RemoveEntry(
 			&voice->audio->sources,
 			voice,
 			voice->audio->sourceLock,
 			voice->audio->pFree
 		);
-		FAudio_PlatformUnlockMutex(voice->audio->sourceLock);
-		LOG_MUTEX_UNLOCK(voice->audio, voice->audio->sourceLock)
 
 		voice->audio->pFree(voice->src.queued_buffers);
 		voice->audio->pFree(voice->src.flush_buffers);
@@ -2836,19 +2873,22 @@ uint32_t FAudioSourceVoice_SubmitSourceBuffer(
 	}
 	else
 	{
-		if (loopLength)
-			entry->loop_bytes = loopLength / samples_per_block * block_size;
-		else
-			entry->loop_bytes = pBuffer->AudioBytes - (loopBegin / samples_per_block * block_size);
-
 		if (playLength)
 			entry->play_bytes = playLength / samples_per_block * block_size;
 		else
 			entry->play_bytes = pBuffer->AudioBytes - (playBegin / samples_per_block * block_size);
+
+		if (loopLength)
+			entry->loop_bytes = loopLength / samples_per_block * block_size;
+		else
+			entry->loop_bytes = entry->play_bytes
+				+ (playBegin / samples_per_block * block_size)
+				- (loopBegin / samples_per_block * block_size);
 	}
 
 	if (	voice->audio->version <= 7 && (
 		entry->buffer.LoopCount > 0 &&
+		entry->buffer.LoopLength &&
 		entry->buffer.LoopBegin + entry->buffer.LoopLength <= entry->buffer.PlayBegin))
 	{
 		entry->buffer.LoopCount = 0;
@@ -2903,11 +2943,14 @@ uint32_t FAudioSourceVoice_FlushSourceBuffers(
 	}
 
 	if (voice->src.queued_buffer_count > offset)
+	{
 		FAudio_memcpy(voice->src.flush_buffers + voice->src.flush_buffer_count,
 			voice->src.queued_buffers + offset,
-			voice->src.queued_buffer_count - offset);
-	voice->src.queued_buffer_count -= offset;
-	voice->src.flush_buffer_count += offset;
+			(voice->src.queued_buffer_count - offset) * sizeof(*voice->src.flush_buffers));
+	}
+
+	voice->src.flush_buffer_count += voice->src.queued_buffer_count - offset;
+	voice->src.queued_buffer_count = offset;
 
 	FAudio_PlatformUnlockMutex(voice->src.bufferLock);
 	LOG_MUTEX_UNLOCK(voice->audio, voice->src.bufferLock)
@@ -2982,7 +3025,7 @@ void FAudioSourceVoice_GetState(
 	pVoiceState->BuffersQueued = 0;
 	pVoiceState->pCurrentBufferContext = NULL;
 
-	if (voice->src.queued_buffer_count && voice->src.queued_buffers[0].sent_OnStartBuffer)
+	if (voice->src.queued_buffer_count)
 		pVoiceState->pCurrentBufferContext = voice->src.queued_buffers[0].buffer.pContext;
 	FAudio_assert(voice->src.queued_buffer_count <= UINT32_MAX);
 	pVoiceState->BuffersQueued += (uint32_t) voice->src.queued_buffer_count;

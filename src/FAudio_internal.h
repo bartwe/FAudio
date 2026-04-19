@@ -441,6 +441,7 @@ struct FAudio
 	LinkedList *sources;
 	LinkedList *submixes;
 	LinkedList *callbacks;
+	FAudioMutex refLock; // FIXME: refcount should be an SDL_AtomicInt instead -flibit
 	FAudioMutex sourceLock;
 	FAudioMutex submixLock;
 	FAudioMutex callbackLock;
