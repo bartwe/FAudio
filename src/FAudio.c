@@ -2488,14 +2488,18 @@ static void destroy_voice(FAudioVoice *voice)
 			FAudio_PlatformLockMutex(voice->audio->sourceLock);
 			LOG_MUTEX_LOCK(voice->audio, voice->audio->sourceLock)
 		}
+		FAudio_PlatformUnlockMutex(voice->audio->sourceLock);
+		LOG_MUTEX_UNLOCK(voice->audio, voice->audio->sourceLock)
+		/* LinkedList_RemoveEntry does its own lock/unlock of
+		 * sourceLock internally, so we must not hold it here.
+		 * SDL3 mutexes are non-recursive and would self-deadlock.
+		 */
 		LinkedList_RemoveEntry(
 			&voice->audio->sources,
 			voice,
 			voice->audio->sourceLock,
 			voice->audio->pFree
 		);
-		FAudio_PlatformUnlockMutex(voice->audio->sourceLock);
-		LOG_MUTEX_UNLOCK(voice->audio, voice->audio->sourceLock)
 
 		voice->audio->pFree(voice->src.queued_buffers);
 		voice->audio->pFree(voice->src.flush_buffers);
