@@ -549,8 +549,20 @@ static bool handle_instance_limit(FACTCue *cue, FACTAudioCategory *category)
 		if (cursor == cue || !cursor->playingSound || (cursor->state & (FACT_STATE_STOPPING | FACT_STATE_STOPPED)))
 			continue;
 
-		if (category && category != &engine->categories[cursor->playingSound->sound->category])
-			continue;
+		if (category)
+		{
+			if (category != &engine->categories[cursor->playingSound->sound->category])
+			{
+				continue;
+			}
+		}
+		else
+		{
+			if (cursor->index != cue->index)
+			{
+				continue;
+			}
+		}
 
 		/* FIXME: How does QUEUE differ from REPLACE_OLDEST? */
 		if (behaviour == MAX_INSTANCE_BEHAVIOR_QUEUE
@@ -3060,9 +3072,22 @@ uint32_t FACT_INTERNAL_ParseWaveBank(
 		/* Native forbids creating an in-memory wave bank when the flags
 		 * include STREAMING. It allows creating a streaming wave bank
 		 * when the flags do not include STREAMING, but subsequent
-		 * attempts to use the wave bank crash. Forbid both. */
-		pEngine->pFree(wb);
-		return FACTENGINE_E_INVALIDUSAGE;
+		 * attempts to use the wave bank crash.
+		 *
+		 * We _should_ forbid both, but for whatever reason XAudio2
+		 * thought it could handle this case. Fortunately, FAudio _does_
+		 * handle this without crashing, so leave it a bit broken here.
+		 */
+		if (wb->streaming)
+		{
+			pEngine->pFree(wb);
+			return FACTENGINE_E_INVALIDUSAGE;
+		}
+		else
+		{
+			/* Per the above, just pretend we're streaming in this case */
+			wb->streaming = isStreaming;
+		}
 	}
 
 	wb->entryCount = wbinfo.dwEntryCount;

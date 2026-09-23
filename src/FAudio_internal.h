@@ -306,6 +306,8 @@ void LinkedList_RemoveEntry(
 
 /* Internal FAudio Types */
 
+#define MAX_CHANNELS 8
+
 typedef enum FAudioVoiceType
 {
 	FAUDIO_VOICE_SOURCE,
@@ -331,8 +333,8 @@ typedef void (FAUDIOCALL * FAudioDecodeCallback)(FAudioVoice *voice,
 	const void *src, float *dst, uint32_t block_offset, uint32_t sample_count);
 
 typedef void (FAUDIOCALL * FAudioResampleCallback)(
-	float *restrict dCache,
-	float *restrict resampleCache,
+	float *restrict src,
+	float *restrict dst,
 	uint64_t *resampleOffset,
 	uint64_t resampleStep,
 	uint64_t toResample,
@@ -459,9 +461,9 @@ struct FAudio
 	uint32_t decodeSamples;
 	uint32_t resampleSamples;
 	uint32_t effectChainSamples;
-	float *decodeCache;
-	float *resampleCache;
-	float *effectChainCache;
+	float *decoded_audio;
+	float *resampled_audio;
+	float *effect_output;
 
 	/* Allocator callbacks */
 	FAudioMallocFunc pMalloc;
@@ -525,9 +527,9 @@ struct FAudioVoice
 			/* Resampler */
 			float resampleFreq;
 			uint64_t resampleStep;
-			uint64_t resampleOffset;
-			uint64_t curBufferOffsetDec;
+			int64_t resampleOffset;
 			uint32_t curBufferOffset;
+			float resample_taps[2][MAX_CHANNELS];
 
 			/* WMA decoding */
 #ifdef HAVE_WMADEC
@@ -550,6 +552,7 @@ struct FAudioVoice
 
 			/* Dynamic */
 			uint8_t active;
+			bool eos;
 			float freqRatio;
 			uint64_t totalSamples;
 
@@ -570,7 +573,7 @@ struct FAudioVoice
 			/* Sample storage */
 			uint32_t inputSamples;
 			uint32_t outputSamples;
-			float *inputCache;
+			float *input;
 			uint64_t resampleStep;
 			FAudioResampleCallback resample;
 
@@ -585,7 +588,7 @@ struct FAudioVoice
 			float *output;
 
 			/* Needed when inputChannels != outputChannels */
-			float *effectCache;
+			float *effect_input;
 
 			/* Read-only */
 			uint32_t inputChannels;
@@ -602,7 +605,7 @@ void FAudio_INTERNAL_InsertSubmixSorted(
 	FAudioMallocFunc pMalloc
 );
 void FAudio_INTERNAL_UpdateEngine(FAudio *audio, float *output);
-void FAudio_INTERNAL_ResizeDecodeCache(FAudio *audio, uint32_t size);
+void resize_decoded_audio_buffer(FAudio *audio, uint32_t size);
 void FAudio_INTERNAL_AllocEffectChain(
 	FAudioVoice *voice,
 	const FAudioEffectChain *pEffectChain
@@ -612,7 +615,7 @@ uint32_t FAudio_INTERNAL_VoiceOutputFrequency(
 	FAudioVoice *voice,
 	const FAudioVoiceSends *pSendList
 );
-extern const float FAUDIO_INTERNAL_MATRIX_DEFAULTS[8][8][64];
+extern const float FAUDIO_INTERNAL_MATRIX_DEFAULTS[MAX_CHANNELS][MAX_CHANNELS][64];
 
 bool array_reserve(FAudio *audio, void **elements, size_t *capacity, size_t count, size_t size);
 
@@ -757,8 +760,8 @@ extern void (*FAudio_INTERNAL_Convert_S32_To_F32)(
 extern FAudioResampleCallback FAudio_INTERNAL_ResampleMono;
 extern FAudioResampleCallback FAudio_INTERNAL_ResampleStereo;
 extern void FAudio_INTERNAL_ResampleGeneric(
-	float *restrict dCache,
-	float *restrict resampleCache,
+	float *restrict src,
+	float *restrict dst,
 	uint64_t *resampleOffset,
 	uint64_t resampleStep,
 	uint64_t toResample,
@@ -942,16 +945,22 @@ static inline void WriteWaveFormatExtensible(
 #define FIXED_INTEGER_MASK	~FIXED_FRACTION_MASK
 
 /* Helper macros to convert fixed to float */
-#define DOUBLE_TO_FIXED(dbl) \
-	((uint64_t) (dbl * FIXED_ONE + 0.5))
-#define FIXED_TO_DOUBLE(fxd) ( \
-	(double) (fxd >> FIXED_PRECISION) + /* Integer part */ \
-	((fxd & FIXED_FRACTION_MASK) * (1.0 / FIXED_ONE)) /* Fraction part */ \
-)
-#define FIXED_TO_FLOAT(fxd) ( \
-	(float) (fxd >> FIXED_PRECISION) + /* Integer part */ \
-	((fxd & FIXED_FRACTION_MASK) * (1.0f / FIXED_ONE)) /* Fraction part */ \
-)
+static inline uint64_t double_to_fixed(double dbl)
+{
+	return (dbl * FIXED_ONE + 0.5);
+}
+
+static inline float fixed_to_float(uint64_t fxd)
+{
+	return (float)(fxd >> FIXED_PRECISION) + /* Integer part */
+		((fxd & FIXED_FRACTION_MASK) * (1.0f / FIXED_ONE)); /* Fraction part */
+}
+
+/* 0 = first, 1 = second */
+static inline float lerp(float first, float second, float coef)
+{
+	return first + (second - first) * coef;
+}
 
 #ifdef FAUDIO_DUMP_VOICES
 /* File writing structure */
